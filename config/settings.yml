@@ -2,8 +2,8 @@
 encryption_key: someRandomBINARYKEY
 mailer:
   server: mail.example.com
-  username: someLOGIN
-  password: s0meth1ngs3cr3t
+  username: janeKim
+  password: somethinS3cr1t
 paypal:
   ip:         192.168.0.1
   login:      someLOGIN.yahoo.com
@@ -11,7 +11,7 @@ paypal:
   signature:  someSIGNATURE
 authnet:
   login:      <%= ENV['AUTHNET_LOGIN'] %>
-  password:   <%= ENV['AUTHNET_PASSWORD'] %>
+  password:   <%= ENV['AUTHNET_PASSWORD'] %> #not sure what this is...
 vat: false
 require_state_in_address: true
 
