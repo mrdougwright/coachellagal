@@ -7,7 +7,25 @@
 &nbsp;
 </div>
 
+<div class="background_image">
+  <%= image_tag 'forrest.png' %>
+</div>
+
+<div class="header white-block">
+  <%= image_tag 'logos/logo.png', :alt => "#{@company_name}", :style =>'display:block' %>
+  <table class="products">
+  <tbody>
+    <% @product_types.in_groups_of(3).each do |group| %>
+      <tr>
+        <% group.each do |product| %>
+          <td><%= product.name.capitalize.pluralize %></td>
+        <% end %>
+      </tr>
+    <% end %>
+  </tbody>
+  </table>
+</div>
+
 <div id='featured_item' class='span-18 last'>
-  <%= image_tag 'home.png' %>
 </div>
 

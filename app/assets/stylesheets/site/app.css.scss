@@ -7,7 +7,7 @@
 
 // RoR eCommerce Customer-Facing Styles
 
-@include sticky-footer(54px, "#body_wrapper", "#prefooter_wrapper", "#footer_wrapper");
+@include sticky-footer(6px, "#body_wrapper", "#prefooter_wrapper", "#footer_wrapper");
 
 .clearfix {
   @include clearfix();
