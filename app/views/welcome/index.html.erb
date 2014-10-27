@@ -18,7 +18,9 @@
     <% @product_types.in_groups_of(3).each do |group| %>
       <tr>
         <% group.each do |product| %>
-          <td><%= product.name.capitalize.pluralize %></td>
+          <td>
+            <%= link_to_unless_current product.name.capitalize.pluralize, products_path(:product_type_id => product.id) %>
+          </td>
         <% end %>
       </tr>
     <% end %>
