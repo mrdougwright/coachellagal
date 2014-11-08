@@ -19,7 +19,9 @@
       <tr>
         <% group.each do |product| %>
           <td>
-            <%= link_to_unless_current product.name.capitalize.pluralize, products_path(:product_type_id => product.id) %>
+            <% unless product.nil? %>
+              <%= link_to_unless_current product.name.capitalize.pluralize, products_path(:product_type_id => product.id) %>
+            <% end %>
           </td>
         <% end %>
       </tr>
