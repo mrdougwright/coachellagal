@@ -57,6 +57,8 @@ gem 'state_machine', '~> 1.2.0'
 gem 'will_paginate', '~> 3.0.4'
 gem 'zurb-foundation', '~> 4.3.2'
 
+gem 'stripe', :git => 'https://github.com/stripe/stripe-ruby'
+
 group :production do
   gem 'pg'
   gem 'rails_12factor'
@@ -82,6 +84,7 @@ group :test, :development do
   gem 'capybara'#, "~> 2.4.1"#, :git => 'git://github.com/jnicklas/capybara.git'
   gem 'launchy'
   gem 'database_cleaner', "~> 1.2"
+  gem 'dotenv-rails'
 end
 
 group :test do

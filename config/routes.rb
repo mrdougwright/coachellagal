@@ -20,6 +20,7 @@ Hadean::Application.routes.draw do
   resources :terms,       only: [:index]
   resource  :unsubscribe, only: :show
   resources :wish_items,  only: [:index, :destroy]
+  resources :charges
 
   root :to => "welcome#index"
 
