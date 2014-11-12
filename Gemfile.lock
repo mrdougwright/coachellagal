@@ -99,6 +99,9 @@ GEM
     debug_inspector (0.0.2)
     debugger-linecache (1.2.0)
     diff-lcs (1.2.5)
+    dotenv (1.0.2)
+    dotenv-rails (1.0.2)
+      dotenv (= 1.0.2)
     dynamic_form (1.1.4)
     email_spec (1.6.0)
       launchy (~> 2.1)
@@ -326,6 +329,7 @@ DEPENDENCIES
   chronic
   compass-rails (~> 2.0.0)
   database_cleaner (~> 1.2)
+  dotenv-rails
   dynamic_form
   email_spec
   factory_girl (~> 3.3.0)
