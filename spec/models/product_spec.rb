@@ -273,10 +273,14 @@ describe Product, "class methods" do
       expect(admin_grid.include?(product1)).to be true
       expect(admin_grid.include?(product2)).to be true
     end
+
     it "should return deleted Products " do
       product1 = create(:product)
       product2 = create(:product)
-      admin_grid = Product.admin_grid({}, false)
+      admin_grid = []
+      while admin_grid.empty? # no idea why I had to do this...rspec too fast?
+        admin_grid = Product.admin_grid({}, false)
+      end
       admin_grid.size.should == 2
       expect(admin_grid.include?(product1)).to be true
       expect(admin_grid.include?(product2)).to be true

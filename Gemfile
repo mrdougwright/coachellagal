@@ -78,13 +78,13 @@ group :development do
   # YARD AND REDCLOTH are for generating yardocs
   gem 'yard'
   gem 'RedCloth'
-  gem 'pry'
 end
 group :test, :development do
   gem 'capybara'#, "~> 2.4.1"#, :git => 'git://github.com/jnicklas/capybara.git'
   gem 'launchy'
   gem 'database_cleaner', "~> 1.2"
   gem 'dotenv-rails'
+  gem 'pry'
 end
 
 group :test do

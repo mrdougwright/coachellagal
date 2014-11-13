@@ -13,7 +13,7 @@ def cookied_admin_login
 end
 def cookied_login
    User.acts_as_authentic_config[:maintain_sessions] = false
-   create(:user, :first_name => 'Dave', :email => 'test@nonadmin.com', :password => 'secret1', :password_confirmation => 'secret1')
+   create(:user, :first_name => 'Doug', :email => 'test@nonadmin.com', :password => 'secret1', :password_confirmation => 'secret1')
    User.any_instance.stubs(:admin?).returns(false)
    visit login_path
    within("#login") do
@@ -50,8 +50,7 @@ describe "Admin::Overviews" do
     it "If a user has already been created this page will redirect to root_url for non-admins" do
       cookied_login
       visit admin_overviews_path
-      page.should have_content('account is required')
-      page.should have_content('forgot password')
+      page.should_not have_content('Best to go through the list below in separate tabs')
     end
   end
 end
