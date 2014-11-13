@@ -164,17 +164,6 @@ describe Order, "instance methods" do
     end
   end
 
-  context ".capture_invoice(invoice)" do
-    it 'should return an payment object' do
-      ##  Create fake admin_cart object in memcached
-      @invoice  = create(:invoice)
-      payment   = @order.capture_invoice(@invoice)
-      payment.class.to_s.should == 'Payment'
-      @invoice.state.should == 'paid'
-    end
-  end
-
-
 
   #def create_invoice(credit_card, charge_amount, args)
   #  transaction do
@@ -182,12 +171,12 @@ describe Order, "instance methods" do
   #  end
   #end
   context ".create_invoice(credit_card, charge_amount, args)" do
+    before do
+      ResqueSpec.reset!
+    end
     it 'should return an create_invoice on success' do
-      notifier_mock = mock()
-      notifier_mock.stubs(:deliver)
-      Notifier.stubs(:order_confirmation).returns(notifier_mock)
       cc_params = {
-        :brand               => 'visa',
+        :brand              => 'visa',
         :number             => '1',
         :verification_value => '322',
         :month              => '4',
@@ -198,10 +187,20 @@ describe Order, "instance methods" do
 
       ##  Create fake admin_cart object in memcached
       # create_invoice(credit_card, charge_amount, args)
-      credit_card               = ActiveMerchant::Billing::CreditCard.new(cc_params)
-      invoice                   = @order.create_invoice(credit_card, 12.45, {})
+      credit_card     = mock()
+      payment_profile = mock()
+      payment_profile.stubs(:customer_token).returns('fakeTOKEN')
+
+
+      charge_mock = mock()
+      charge_mock.stubs(:paid).returns(true)
+      charge_mock.stubs(:id).returns('fakeTOKEN')
+
+      Stripe::Charge.stubs(:create).returns(charge_mock)
+      invoice                   = @order.create_invoice(credit_card, 12.45,payment_profile, {})
       invoice.class.to_s.should == 'Invoice'
-      invoice.state.should      == 'authorized'
+      invoice.state.should      == 'paid'
+      Jobs::SendOrderConfirmation.should have_queued(@order.id, invoice.id).in(:order_confirmation_emails)
     end
     it 'should return an create_invoice on failure' do
       cc_params = {
@@ -216,8 +215,15 @@ describe Order, "instance methods" do
 
       ##  Create fake admin_cart object in memcached
       # create_invoice(credit_card, charge_amount, args)
-      credit_card               = ActiveMerchant::Billing::CreditCard.new(cc_params)
-      invoice                   = @order.create_invoice(credit_card, 12.45, {})
+      credit_card     = mock()
+      payment_profile = mock()
+      payment_profile.stubs(:customer_token).returns('fakeTOKEN')
+
+      charge_mock = mock()
+      charge_mock.stubs(:paid).returns(false)
+      Stripe::Charge.stubs(:create).returns(charge_mock)
+
+      invoice                   = @order.create_invoice(credit_card, 12.45, payment_profile, {})
       invoice.class.to_s.should == 'Invoice'
       invoice.state.should      == 'payment_declined'
     end
