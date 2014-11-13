@@ -179,17 +179,12 @@ class Order < ActiveRecord::Base
 
 
   ## This method creates the invoice and payment method.  If the payment is not authorized the whole transaction is roled back
-  def create_invoice(credit_card, charge_amount, args, credited_amount = 0.0)
+  def create_invoice(credit_card, charge_amount, payment_method, credited_amount = 0.0)
     transaction do
-      new_invoice = create_invoice_transaction(credit_card, charge_amount, args, credited_amount)
+      new_invoice = create_invoice_transaction(credit_card, charge_amount, payment_method, credited_amount)
       if new_invoice.succeeded?
         remove_user_store_credits
-
-        if Settings.uses_resque_for_background_emails
-          Resque.enqueue(Jobs::SendOrderConfirmation, self.id, new_invoice.id)
-        else
-          Notifier.order_confirmation(self.id, new_invoice.id).deliver rescue puts( 'do nothing...  dont blow up over an order conf email')
-        end
+        Resque.enqueue(Jobs::SendOrderConfirmation, self.id, new_invoice.id)
       end
       new_invoice
     end
@@ -590,14 +585,14 @@ class Order < ActiveRecord::Base
     end
   end
 
-  def create_invoice_transaction(credit_card, charge_amount, args, credited_amount = 0.0)
-    invoice_statement = Invoice.generate(self.id, charge_amount, credited_amount)
+  def create_invoice_transaction(credit_card, charge_amount, payment_method, credited_amount = 0.0)
+    invoice_statement = Invoice.generate(self.id, charge_amount, payment_method, taxed_amount, credited_amount)
     invoice_statement.save
-    invoice_statement.authorize_payment(credit_card, args)#, options = {})
+    invoice_statement.capture_stripe_customer_payment(payment_method.customer_token)
     invoices.push(invoice_statement)
     if invoice_statement.succeeded?
       self.order_complete! #complete!
-      self.save
+      self.pay!
     else
       #role_back
       invoice_statement.errors.add(:base, 'Payment denied!!!')

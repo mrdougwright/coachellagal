@@ -13,6 +13,7 @@
 #  period                 :string(255)
 #  created_at             :datetime
 #  updated_at             :datetime
+#  tax_state_id           :integer
 #
 
 class TransactionLedger < ActiveRecord::Base
