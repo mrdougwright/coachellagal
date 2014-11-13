@@ -29,6 +29,7 @@ class Shopping::OrdersController < Shopping::BaseController
 
   # POST /shopping/orders
   def update
+    # think STRIPE stuff from charges_controller needs to go here....
     @order = find_or_create_order
     @order.ip_address = request.remote_ip
 

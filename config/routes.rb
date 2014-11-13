@@ -1,7 +1,7 @@
 Hadean::Application.routes.draw do
 
   resources :image_groups
-  # mount Resque::Server.new, at: "/resque"
+  mount Resque::Server.new, at: "/resque"
 
   namespace(:admin){ namespace(:customer_service){ resources :comments } }
 

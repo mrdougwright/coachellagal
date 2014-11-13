@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20131123212228) do
+ActiveRecord::Schema.define(version: 20141113174357) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -209,14 +209,19 @@ ActiveRecord::Schema.define(version: 20131123212228) do
   end
 
   create_table "invoices", force: true do |t|
-    t.integer  "order_id",                                                     null: false
-    t.decimal  "amount",          precision: 8, scale: 2,                      null: false
-    t.string   "invoice_type",                            default: "Purchase", null: false
-    t.string   "state",                                                        null: false
-    t.boolean  "active",                                  default: true,       null: false
+    t.integer  "order_id",                                                                 null: false
+    t.decimal  "amount",                      precision: 8, scale: 2,                      null: false
+    t.string   "invoice_type",                                        default: "Purchase", null: false
+    t.string   "state",                                                                    null: false
+    t.boolean  "active",                                              default: true,       null: false
     t.datetime "created_at"
     t.datetime "updated_at"
-    t.decimal  "credited_amount", precision: 8, scale: 2, default: 0.0
+    t.decimal  "credited_amount",             precision: 8, scale: 2, default: 0.0
+    t.string   "card_token",      limit: 100
+    t.integer  "tax_amount"
+    t.integer  "tax_state_id"
+    t.string   "charge_token",    limit: 100
+    t.string   "customer_token",  limit: 100
   end
 
   add_index "invoices", ["order_id"], name: "index_invoices_on_order_id", using: :btree
@@ -660,6 +665,7 @@ ActiveRecord::Schema.define(version: 20131123212228) do
     t.string   "period"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.integer  "tax_state_id"
   end
 
   add_index "transaction_ledgers", ["accountable_id"], name: "index_transaction_ledgers_on_accountable_id", using: :btree
