@@ -3,7 +3,6 @@ source 'http://rubygems.org'
 
 ## Bundle rails:
 gem 'rails', '4.1.4'
-gem 'dotenv-rails'
 
 gem 'uglifier',     '>= 1.3.0'
 gem 'sass-rails',   '~> 4.0.0'
@@ -49,7 +48,8 @@ gem 'rmagick',    :require => 'RMagick'
 
 gem 'rake', '~> 10.1'
 
-# gem 'resque', require: 'resque/server'
+gem 'resque', require: 'resque/server'
+gem 'unicorn', '~> 4.8.0'
 
 gem 'state_machine', '~> 1.2.0'
 #gem 'sunspot_solr', '~> 2.0.0'
@@ -65,7 +65,6 @@ group :production do
 end
 
 group :development do
-  gem 'pg'
   gem 'railroady'
   #gem 'awesome_print'
   #gem 'annotate', :git => 'git://github.com/ctran/annotate_models.git'
@@ -74,17 +73,18 @@ group :development do
   gem "binding_of_caller", '~> 0.7.2'
   gem 'byebug'
   gem "rails-erd"
+  gem "foreman"
 
   # YARD AND REDCLOTH are for generating yardocs
   gem 'yard'
   gem 'RedCloth'
-  gem 'pry'
 end
 group :test, :development do
   gem 'capybara'#, "~> 2.4.1"#, :git => 'git://github.com/jnicklas/capybara.git'
   gem 'launchy'
   gem 'database_cleaner', "~> 1.2"
   gem 'dotenv-rails'
+  gem 'pry'
 end
 
 group :test do
@@ -94,6 +94,7 @@ group :test do
   gem 'rspec-rails-mocha'
   gem 'rspec-rails', '2.99.0'#, '~> 3.0.2'
 
+  gem 'resque_spec'
   gem 'email_spec'
   gem "faker"
 
