@@ -46,6 +46,7 @@ Hadean::Application.configure do
 
 
   config.after_initialize do
+    Paperclip::Attachment.default_options[:storage] = :s3
     #Formtastic::SemanticFormBuilder.send(:include, Formtastic::DatePicker)
     #Formtastic::SemanticFormBuilder.send(:include, Formtastic::FuturePicker)
     #Formtastic::SemanticFormBuilder.send(:include, Formtastic::YearPicker)
@@ -81,5 +82,5 @@ Hadean::Application.configure do
                                           :large    => '600x600>' },
                               :default_style => :product,
                               :url => "/assets/products/:id/:style/:basename.:extension",
-                              :path => ":rails_root/public/assets/products/:id/:style/:basename.:extension" }
+                              :path => "app/public/assets/products/:id/:style/:basename.:extension" }
 end
