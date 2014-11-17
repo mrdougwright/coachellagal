@@ -12,7 +12,6 @@ if (typeof Hadean.Product.tabs == "undefined") {
       $('#product_tabs .section-container section ').click(function() {
         setTimeout('Hadean.Product.tabs.updateProductTabs()', 100);
       })
-      $('#product_tabs .section-container .section').first().find('a').click()
       Hadean.Product.tabs.updateProductTabs();
     },
     updateProductTabs : function() {

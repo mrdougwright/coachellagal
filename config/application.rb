@@ -17,12 +17,17 @@ module Hadean
     # Enable the asset pipeline
     config.assets.enabled = true
 
+    # Do not initialize application on precompile.
+    # https://devcenter.heroku.com/articles/rails-asset-pipeline#troubleshooting
+    config.assets.initialize_on_precompile = false
+
     # Version of your assets, change this if you want to expire all your assets
-    config.assets.version = '0.11.0'
+    config.assets.version = '0.10.4'
 
     # Custom directories with classes and modules you want to be autoloadable.
-    # config.autoload_paths += %W(#{config.root}/extras)
-    config.autoload_paths += %W(#{config.root}/app/models/ror_e_reports)
+    # config.autoload_paths += %W(#{config.root}/app/reports/*)
+    config.autoload_paths += %W(#{config.root}/lib/reports #{config.root}/lib/jobs)
+    #config.autoload_paths << File.join(Rails.root, "app", "reports")
 
     # Only load the plugins named here, in the order given (default is alphabetical).
     # :all can be used as a placeholder for all plugins not explicitly named.
@@ -35,7 +40,8 @@ module Hadean
     # Run "rake -D time" for a list of tasks for finding time zone names. Default is UTC.
     # "Pacific Time (US & Canada)"
     # 'Central Time (US & Canada)'
-    config.time_zone = 'Eastern Time (US & Canada)'
+    # config.time_zone = 'Eastern Time (US & Canada)'
+    config.time_zone = "Pacific Time (US & Canada)"
 
     # The default locale is :en and all translations from config/locales/*.rb,yml are auto loaded.
     # config.i18n.load_path += Dir[Rails.root.join('my', 'locales', '*.{rb,yml}').to_s]
@@ -53,7 +59,6 @@ module Hadean
       g.fixture_replacement :factory_girl , :dir=>"spec/factories"
     end
 
-    #config.session_store = ::Ripple::SessionStore
 
     # Configure sensitive parameters which will be filtered from the log file.
     config.filter_parameters += [:password,
@@ -66,6 +71,8 @@ module Hadean
                                   :verification_value]
     # access any Settings here
     config.after_initialize do
+
+      Stripe.api_key = Settings.stripe.secret_key
 
       Paperclip::Attachment.default_options[:s3_protocol]     = Settings.paperclip.s3_protocol
       Paperclip::Attachment.default_options[:s3_credentials]  = Settings.paperclip.s3_credentials.to_hash

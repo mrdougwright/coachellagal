@@ -89,13 +89,21 @@
 
 class Cart < ActiveRecord::Base
   belongs_to  :user
-  belongs_to  :customer, class_name: 'User'
+  belongs_to  :customer, :class_name => 'User'
   has_many    :cart_items
-  has_many    :shopping_cart_items, -> { where(active: true, item_type_id: ItemType::SHOPPING_CART_ID) },   class_name: 'CartItem'
-  has_many    :saved_cart_items,    -> { where( active: true, item_type_id: ItemType::SAVE_FOR_LATER_ID) }, class_name: 'CartItem'
-  has_many    :wish_list_items,     -> { where( active: true, item_type_id: ItemType::WISH_LIST_ID) },      class_name: 'CartItem'
-  has_many    :purchased_items,     -> { where( active: true, item_type_id: ItemType::PURCHASED_ID) },      class_name: 'CartItem'
-  has_many    :deleted_cart_items,  -> { where(active: false) }, class_name: 'CartItem'
+  has_many    :shopping_cart_items,     -> { where cart_items: {active: true, item_type_id: ItemType::SHOPPING_CART_ID} },
+                                          :class_name => 'CartItem'
+
+
+  has_many    :saved_cart_items,        -> { where cart_items: {active: true, item_type_id: ItemType::SAVE_FOR_LATER_ID} },
+                                            :class_name => 'CartItem'
+  has_many    :wish_list_items,         -> { where cart_items: {active: true, item_type_id: ItemType::WISH_LIST_ID} },
+                                            :class_name => 'CartItem'
+
+  has_many    :purchased_items,         -> { where cart_items: {active: true, item_type_id: ItemType::PURCHASED_ID} },
+                                            :class_name => 'CartItem'
+
+  has_many    :deleted_cart_items,      -> { where cart_items: {active: false} }, :class_name => 'CartItem'
 
   accepts_nested_attributes_for :shopping_cart_items
 
@@ -107,6 +115,22 @@ class Cart < ActiveRecord::Base
     shopping_cart_items.map(&:total).sum
   end
 
+  def merge_with_previous_cart!
+    if user_id && previous_cart
+      current_items = cart_items.map(&:variant_id)
+      previous_cart.cart_items.each do |item|
+        self.add_variant(item.variant_id, item.user, item.quantity) unless current_items.include?(item.variant_id)
+      end
+    end
+  end
+
+  def media_cart_items
+    shopping_cart_items.select{|i| Variant.default_preorder_item_ids.include?( i.variant_id )}
+  end
+
+  def non_media_cart_items
+    shopping_cart_items.select{|i| !Variant.default_preorder_item_ids.include?( i.variant_id )}
+  end
   # Adds the quantity of items that are currently in the shopping cart
   #
   # @param [none]
@@ -137,21 +161,47 @@ class Cart < ActiveRecord::Base
   # @param [Integer, #optional] ItemType id that is being added to the cart
   # @return [CartItem] return the cart item that is added to the cart
   def add_variant(variant_id, customer, qty = 1, cart_item_type_id = ItemType::SHOPPING_CART_ID, admin_purchase = false)
-    items = shopping_cart_items.where(variant_id: variant_id).to_a
+    items   = shopping_cart_items.where(variant_id: variant_id).to_a
     variant = Variant.where(id: variant_id).first
-    quantity_to_purchase = variant.quantity_purchaseable_if_user_wants(qty.to_i, admin_purchase)
+    quantity_to_purchase = (variant.quantity_purchaseable(admin_purchase) < qty.to_i) ? variant.quantity_purchaseable(admin_purchase) : qty.to_i # if we have less than desired instock
+
     if admin_purchase && (quantity_to_purchase > 0)
       cart_item = add_cart_items(items, quantity_to_purchase, customer, cart_item_type_id, variant_id)
     elsif variant.sold_out?
-      cart_item = saved_cart_items.create(variant_id:   variant_id,
-                                          user:         customer,
-                                          item_type_id: ItemType::SAVE_FOR_LATER_ID,
-                                          quantity:     qty
+      cart_item = saved_cart_items.create(:variant_id   => variant_id,
+                                    :user         => customer,
+                                    :item_type_id => ItemType::SAVE_FOR_LATER_ID,
+                                    :quantity     => qty#,#:price      => variant.price
                                     ) if items.size < 1
     else
       cart_item = add_cart_items(items, quantity_to_purchase, customer, cart_item_type_id, variant_id)
     end
     cart_item
+  end
+
+
+  # TEMPORARY METHOD FOR PRESALES (ONLY ADD one upsell to the cart)
+  def add_upsell(variant_id, customer, qty = 1, cart_item_type_id = ItemType::SHOPPING_CART_ID, admin_purchase = false)
+    items = shopping_cart_items.where(variant_id: variant_id).to_a
+    variant = Variant.find(variant_id)
+    quantity_to_purchase = (variant.quantity_purchaseable(admin_purchase) < qty.to_i) ? variant.quantity_purchaseable(admin_purchase) : qty.to_i # if we have less than desired instock
+
+    if admin_purchase && (quantity_to_purchase > 0)
+      cart_item = add_cart_items(items, quantity_to_purchase, customer, cart_item_type_id, variant_id)
+    elsif variant.sold_out?
+      cart_item = saved_cart_items.create(:variant_id   => variant_id,
+                                    :user         => customer,
+                                    :item_type_id => ItemType::SAVE_FOR_LATER_ID,
+                                    :quantity     => qty#,#:price      => variant.price
+                                    ) if items.size < 1
+    elsif items.size == 0
+      cart_item = add_cart_items(items, quantity_to_purchase, customer, cart_item_type_id, variant_id)
+    end
+    cart_item
+  end
+
+  def number_of_variants(variant_id)
+    shopping_cart_items.find_all_by_variant_id(variant_id).count
   end
 
 
@@ -163,6 +213,26 @@ class Cart < ActiveRecord::Base
   def remove_variant(variant_id)
     citems = self.cart_items.each {|ci| ci.inactivate! if variant_id.to_i == ci.variant_id }
     return citems
+  end
+
+  def change_main_sale(variant, customer)
+    similar_variant_ids = variant.similar_variants.map(&:id)
+    shopping_cart_items.map(&:variant_id).each do |cart_variant_id|
+      remove_variant(cart_variant_id) if similar_variant_ids.include?(cart_variant_id)
+    end
+    add_variant(variant.id, customer)
+  end
+
+  def add_default_presale_sale(customer)
+    unless has_main_sale_already?
+      variant = Variant.default_preorder_item
+      add_variant(variant.id, customer)
+    end
+  end
+
+  def has_main_sale_already?
+    default_preorder_item_ids = Variant.default_preorder_item_ids
+    shopping_cart_items.map(&:variant_id).any? {|i| default_preorder_item_ids.include?(i) }
   end
 
   # Call this method when you want to associate the cart with a user
@@ -185,15 +255,6 @@ class Cart < ActiveRecord::Base
              update_all("item_type_id = #{ItemType::PURCHASED_ID}") if !order.variant_ids.empty?
   end
 
-  def merge_with_previous_cart!
-    if user_id && previous_cart
-      current_items = cart_items.map(&:variant_id)
-      previous_cart.cart_items.each do |item|
-        self.add_variant(item.variant_id, item.user, item.quantity) unless current_items.include?(item.variant_id)
-      end
-    end
-  end
-
   def self.previous_for_user(cart_id, user_id)
     Cart.where(['id <> ?', cart_id]).where(user_id: user_id).last
   end
@@ -214,10 +275,10 @@ class Cart < ActiveRecord::Base
 
   def add_cart_items(items, qty, customer, cart_item_type_id, variant_id)
     if items.size < 1
-      cart_item = shopping_cart_items.create(variant_id:   variant_id,
-                                             user:         customer,
-                                             item_type_id: cart_item_type_id,
-                                             quantity:     qty
+      cart_item = shopping_cart_items.create(:variant_id   => variant_id,
+                                    :user         => customer,
+                                    :item_type_id => cart_item_type_id,
+                                    :quantity     => qty#,#:price      => variant.price
                                     )
     else
       cart_item = items.first
@@ -234,23 +295,19 @@ class Cart < ActiveRecord::Base
 
   def items_to_add_or_destroy(items_in_cart, order)
     #destroy_any_order_item_that_was_removed_from_cart
-    destroy_order_items_not_in_cart!(items_in_cart, order)
+    order.order_items.delete_if {|order_item| !items_in_cart.keys.any?{|variant_id| variant_id == order_item.variant_id } }
    # order.order_items.delete_all #destroy(order_item.id)
     items = order.order_items.inject({}) {|h, item| h[item.variant_id].nil? ? h[item.variant_id] = [item.id]  : h[item.variant_id] << item.id; h}
     items_in_cart.each_pair do |variant_id, qty_in_cart|
       variant = Variant.find(variant_id)
-      if items[variant_id].nil? # the order does not have any order_items with this variant_id
+      if items[variant_id].nil?
         order.add_items( variant , qty_in_cart)
-      elsif qty_in_cart - items[variant_id].size > 0 # the order does not enough order_items with this variant_id
+      elsif qty_in_cart - items[variant_id].size > 0
         order.add_items( variant , qty_in_cart - items[variant_id].size)
-      elsif qty_in_cart - items[variant_id].size < 0 # the order has too many order_items with this variant_id
+      elsif qty_in_cart - items[variant_id].size < 0
         order.remove_items( variant , qty_in_cart )
       end
     end
     order
   end
-  private
-    def destroy_order_items_not_in_cart!(items_in_cart, order)
-      order.order_items.delete_if {|order_item| !items_in_cart.keys.any?{|variant_id| variant_id == order_item.variant_id } }
-    end
 end

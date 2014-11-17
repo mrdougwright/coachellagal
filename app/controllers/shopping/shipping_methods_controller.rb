@@ -1,6 +1,11 @@
 class Shopping::ShippingMethodsController < Shopping::BaseController
   # GET /shopping/shipping_methods
+  before_filter :require_user
   def index
+    if session_cart.shopping_cart_items.empty?
+      flash[:notice] = I18n.t('do_not_have_anything_in_your_cart')
+      redirect_to products_url and return
+    end
     unless find_or_create_order.ship_address_id
       flash[:notice] = I18n.t('select_address_before_shipping_method')
       redirect_to shopping_addresses_url
@@ -10,7 +15,6 @@ class Shopping::ShippingMethodsController < Shopping::BaseController
       @shipping_method_ids = session_order.ship_address.shipping_method_ids
 
       @order_items = OrderItem.includes({:variant => {:product => :shipping_category}}).order_items_in_cart(session_order.id)
-      #session_order.order_
       @order_items.each do |item|
         item.variant.product.available_shipping_rates = ShippingRate.with_these_shipping_methods(item.variant.product.shipping_category.shipping_rate_ids, @shipping_method_ids)
       end
@@ -25,18 +29,24 @@ class Shopping::ShippingMethodsController < Shopping::BaseController
       if rate_id
         items = OrderItem.includes([{:variant => :product}]).
                           where(['order_items.order_id = ? AND
-                                  products.shipping_category_id = ?', session_order_id, category_id]).references(:products)
+                                  products.shipping_category_id = ?', session_order_id, category_id]).references(:product)
 
         OrderItem.where(id: items.map{|i| i.id}).update_all("shipping_rate_id = #{rate_id}")
       else
         all_selected = false
       end
     end
+
     if all_selected
-      redirect_to(shopping_orders_url, :notice => I18n.t('shipping_method_updated'))
+      redirect_to(next_form_url(session_order))
     else
       redirect_to( shopping_shipping_methods_url, :notice => I18n.t('all_shipping_methods_must_be_selected'))
     end
+  end
+  private
+
+  def selected_checkout_tab(tab)
+    tab == 'shipping-method'
   end
 
 end

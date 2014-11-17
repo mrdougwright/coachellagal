@@ -16,12 +16,12 @@ class Phone < ActiveRecord::Base
   include ActionView::Helpers::NumberHelper
   belongs_to :phone_type
   #belongs_to :phone_priority
-  belongs_to :phoneable, :polymorphic => true
+  belongs_to :phoneable, :polymorphic => true, :touch => true
 
   validates :phone_type_id,  :presence => true
   validates :number,  :presence => true, :numericality => true,
                       :format   => { :with => CustomValidators::Numbers.phone_number_validator },
-                      :length   => { :maximum => 25 }
+                      :length   => { :minimum => 10, :maximum => 25 }
 
   before_validation :sanitize_data
   after_save        :default_phone_check

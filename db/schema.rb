@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20141113174357) do
+ActiveRecord::Schema.define(version: 20130411060543) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
@@ -135,6 +135,7 @@ ActiveRecord::Schema.define(version: 20141113174357) do
   add_index "countries", ["active"], name: "index_countries_on_active", using: :btree
   add_index "countries", ["name"], name: "index_countries_on_name", using: :btree
   add_index "countries", ["shipping_zone_id", "active"], name: "index_countries_on_shipping_zone_id_and_active", using: :btree
+  add_index "countries", ["shipping_zone_id"], name: "index_countries_on_shipping_zone_id", using: :btree
 
   create_table "coupons", force: true do |t|
     t.string   "type",                                                  null: false
@@ -174,14 +175,29 @@ ActiveRecord::Schema.define(version: 20141113174357) do
   add_index "deals", ["deal_type_id"], name: "index_deals_on_deal_type_id", using: :btree
   add_index "deals", ["product_type_id"], name: "index_deals_on_product_type_id", using: :btree
 
-  create_table "image_groups", force: true do |t|
-    t.string   "name",       null: false
-    t.integer  "product_id", null: false
+  create_table "export_documents", force: true do |t|
+    t.integer  "export_type_id"
+    t.text     "info"
+    t.string   "doc_file_name"
+    t.string   "doc_content_type"
+    t.integer  "doc_file_size"
+    t.datetime "doc_updated_at"
     t.datetime "created_at"
     t.datetime "updated_at"
   end
 
-  add_index "image_groups", ["product_id"], name: "index_image_groups_on_product_id", using: :btree
+  add_index "export_documents", ["export_type_id"], name: "index_export_documents_on_export_type_id", using: :btree
+
+  create_table "export_types", force: true do |t|
+    t.string "name"
+  end
+
+  create_table "image_groups", force: true do |t|
+    t.string   "name"
+    t.integer  "product_id"
+    t.datetime "created_at"
+    t.datetime "updated_at"
+  end
 
   create_table "images", force: true do |t|
     t.integer  "imageable_id"
@@ -231,21 +247,23 @@ ActiveRecord::Schema.define(version: 20141113174357) do
   end
 
   create_table "newsletters", force: true do |t|
-    t.string  "name",          null: false
-    t.boolean "autosubscribe", null: false
+    t.string  "name",              null: false
+    t.boolean "autosubscribe",     null: false
+    t.string  "mailchimp_list_id"
   end
 
   create_table "order_items", force: true do |t|
-    t.decimal  "price",            precision: 8, scale: 2
-    t.decimal  "total",            precision: 8, scale: 2
-    t.integer  "order_id",                                 null: false
-    t.integer  "variant_id",                               null: false
-    t.string   "state",                                    null: false
+    t.decimal  "price",             precision: 8, scale: 2
+    t.decimal  "total",             precision: 8, scale: 2
+    t.integer  "order_id",                                  null: false
+    t.integer  "variant_id",                                null: false
+    t.string   "state",                                     null: false
     t.integer  "tax_rate_id"
     t.integer  "shipping_rate_id"
     t.integer  "shipment_id"
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.boolean  "subscription_item"
   end
 
   add_index "order_items", ["order_id"], name: "index_order_items_on_order_id", using: :btree
@@ -263,20 +281,22 @@ ActiveRecord::Schema.define(version: 20141113174357) do
     t.integer  "bill_address_id"
     t.integer  "ship_address_id"
     t.integer  "coupon_id"
-    t.boolean  "active",                                  default: true,  null: false
-    t.boolean  "shipped",                                 default: false, null: false
-    t.integer  "shipments_count",                         default: 0
+    t.boolean  "active",                                     default: true,  null: false
+    t.boolean  "shipped",                                    default: false, null: false
+    t.integer  "shipments_count",                            default: 0
     t.datetime "calculated_at"
     t.datetime "completed_at"
     t.datetime "created_at"
     t.datetime "updated_at"
-    t.decimal  "credited_amount", precision: 8, scale: 2, default: 0.0
+    t.decimal  "credited_amount",    precision: 8, scale: 2, default: 0.0
+    t.integer  "payment_profile_id"
   end
 
   add_index "orders", ["bill_address_id"], name: "index_orders_on_bill_address_id", using: :btree
   add_index "orders", ["coupon_id"], name: "index_orders_on_coupon_id", using: :btree
   add_index "orders", ["email"], name: "index_orders_on_email", using: :btree
   add_index "orders", ["number"], name: "index_orders_on_number", using: :btree
+  add_index "orders", ["payment_profile_id"], name: "index_orders_on_payment_profile_id", using: :btree
   add_index "orders", ["ship_address_id"], name: "index_orders_on_ship_address_id", using: :btree
   add_index "orders", ["user_id"], name: "index_orders_on_user_id", using: :btree
 
@@ -295,6 +315,8 @@ ActiveRecord::Schema.define(version: 20141113174357) do
     t.string   "first_name"
     t.string   "last_name"
     t.string   "card_name"
+    t.string   "customer_token", limit: 100
+    t.string   "salt"
   end
 
   add_index "payment_profiles", ["address_id"], name: "index_payment_profiles_on_address_id", using: :btree
@@ -374,6 +396,8 @@ ActiveRecord::Schema.define(version: 20141113174357) do
     t.datetime "updated_at"
     t.text     "description_markup"
     t.integer  "brand_id"
+    t.text     "short_description"
+    t.text     "reoccurring_blurb"
   end
 
   add_index "products", ["brand_id"], name: "index_products_on_brand_id", using: :btree
@@ -432,50 +456,6 @@ ActiveRecord::Schema.define(version: 20141113174357) do
   add_index "purchase_orders", ["supplier_id"], name: "index_purchase_orders_on_supplier_id", using: :btree
   add_index "purchase_orders", ["tracking_number"], name: "index_purchase_orders_on_tracking_number", using: :btree
 
-  create_table "referral_bonuses", force: true do |t|
-    t.integer  "amount",     null: false
-    t.string   "name",       null: false
-    t.datetime "created_at"
-    t.datetime "updated_at"
-  end
-
-  create_table "referral_programs", force: true do |t|
-    t.boolean  "active",            null: false
-    t.text     "description"
-    t.string   "name",              null: false
-    t.integer  "referral_bonus_id", null: false
-    t.datetime "created_at"
-    t.datetime "updated_at"
-  end
-
-  add_index "referral_programs", ["referral_bonus_id"], name: "index_referral_programs_on_referral_bonus_id", using: :btree
-
-  create_table "referral_types", force: true do |t|
-    t.string "name", null: false
-  end
-
-  create_table "referrals", force: true do |t|
-    t.boolean  "applied",             default: false
-    t.datetime "clicked_at"
-    t.string   "email",                               null: false
-    t.string   "name"
-    t.datetime "purchased_at"
-    t.integer  "referral_program_id",                 null: false
-    t.integer  "referral_type_id",                    null: false
-    t.integer  "referral_user_id"
-    t.integer  "referring_user_id",                   null: false
-    t.datetime "registered_at"
-    t.datetime "sent_at"
-    t.datetime "created_at"
-    t.datetime "updated_at"
-  end
-
-  add_index "referrals", ["email"], name: "index_referrals_on_email", using: :btree
-  add_index "referrals", ["referral_program_id"], name: "index_referrals_on_referral_program_id", using: :btree
-  add_index "referrals", ["referral_type_id"], name: "index_referrals_on_referral_type_id", using: :btree
-  add_index "referrals", ["referral_user_id"], name: "index_referrals_on_referral_user_id", using: :btree
-  add_index "referrals", ["referring_user_id"], name: "index_referrals_on_referring_user_id", using: :btree
-
   create_table "return_authorizations", force: true do |t|
     t.string   "number"
     t.decimal  "amount",         precision: 8, scale: 2,                null: false
@@ -487,6 +467,7 @@ ActiveRecord::Schema.define(version: 20141113174357) do
     t.boolean  "active",                                 default: true
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.integer  "tax_amount"
   end
 
   add_index "return_authorizations", ["created_by"], name: "index_return_authorizations_on_created_by", using: :btree
@@ -593,6 +574,14 @@ ActiveRecord::Schema.define(version: 20141113174357) do
     t.string "name", null: false
   end
 
+  create_table "signups", force: true do |t|
+    t.string   "email",      null: false
+    t.datetime "created_at"
+    t.datetime "updated_at"
+  end
+
+  add_index "signups", ["email"], name: "index_signups_on_email", unique: true, using: :btree
+
   create_table "slugs", force: true do |t|
     t.string   "name"
     t.integer  "sluggable_id"
@@ -606,11 +595,12 @@ ActiveRecord::Schema.define(version: 20141113174357) do
   add_index "slugs", ["sluggable_id"], name: "index_slugs_on_sluggable_id", using: :btree
 
   create_table "states", force: true do |t|
-    t.string  "name",                       null: false
-    t.string  "abbreviation",     limit: 5, null: false
+    t.string  "name",                                      null: false
+    t.string  "abbreviation",     limit: 5,                null: false
     t.string  "described_as"
-    t.integer "country_id",                 null: false
-    t.integer "shipping_zone_id",           null: false
+    t.integer "country_id",                                null: false
+    t.integer "shipping_zone_id",                          null: false
+    t.boolean "active",                     default: true
   end
 
   add_index "states", ["abbreviation"], name: "index_states_on_abbreviation", using: :btree
@@ -626,6 +616,44 @@ ActiveRecord::Schema.define(version: 20141113174357) do
 
   add_index "store_credits", ["user_id"], name: "index_store_credits_on_user_id", using: :btree
 
+  create_table "subscription_plans", force: true do |t|
+    t.string   "name",           null: false
+    t.string   "stripe_id",      null: false
+    t.integer  "amount",         null: false
+    t.integer  "total_payments"
+    t.string   "interval",       null: false
+    t.datetime "created_at"
+    t.datetime "updated_at"
+  end
+
+  add_index "subscription_plans", ["stripe_id"], name: "index_subscription_plans_on_stripe_id", using: :btree
+
+  create_table "subscriptions", force: true do |t|
+    t.integer  "subscription_plan_id",                  null: false
+    t.integer  "user_id",                               null: false
+    t.integer  "order_item_id"
+    t.string   "stripe_customer_token"
+    t.integer  "total_payments"
+    t.boolean  "active",                default: false
+    t.datetime "created_at"
+    t.datetime "updated_at"
+    t.date     "next_bill_date"
+    t.integer  "failed_attempts",       default: 0
+    t.boolean  "canceled",              default: false
+    t.integer  "remaining_payments",    default: 1,     null: false
+    t.integer  "shipping_address_id"
+    t.integer  "billing_address_id"
+    t.integer  "payment_profile_id"
+  end
+
+  add_index "subscriptions", ["billing_address_id"], name: "index_subscriptions_on_billing_address_id", using: :btree
+  add_index "subscriptions", ["next_bill_date"], name: "index_subscriptions_on_next_bill_date", using: :btree
+  add_index "subscriptions", ["order_item_id"], name: "index_subscriptions_on_order_item_id", using: :btree
+  add_index "subscriptions", ["payment_profile_id"], name: "index_subscriptions_on_payment_profile_id", using: :btree
+  add_index "subscriptions", ["shipping_address_id"], name: "index_subscriptions_on_shipping_address_id", using: :btree
+  add_index "subscriptions", ["subscription_plan_id"], name: "index_subscriptions_on_subscription_plan_id", using: :btree
+  add_index "subscriptions", ["user_id"], name: "index_subscriptions_on_user_id", using: :btree
+
   create_table "suppliers", force: true do |t|
     t.string   "name",       null: false
     t.string   "email"
@@ -634,7 +662,7 @@ ActiveRecord::Schema.define(version: 20141113174357) do
   end
 
   create_table "tax_rates", force: true do |t|
-    t.decimal "percentage", precision: 8, scale: 2, default: 0.0,  null: false
+    t.decimal "percentage", precision: 8, scale: 3, default: 0.0,  null: false
     t.integer "state_id"
     t.integer "country_id"
     t.date    "start_date",                                        null: false
@@ -646,6 +674,11 @@ ActiveRecord::Schema.define(version: 20141113174357) do
 
   create_table "tax_statuses", force: true do |t|
     t.string "name", null: false
+  end
+
+  create_table "taxability_informations", force: true do |t|
+    t.string "name"
+    t.string "code"
   end
 
   create_table "transaction_accounts", force: true do |t|
@@ -692,6 +725,7 @@ ActiveRecord::Schema.define(version: 20141113174357) do
   create_table "users", force: true do |t|
     t.string   "first_name"
     t.string   "last_name"
+    t.date     "birth_date"
     t.string   "email"
     t.string   "state"
     t.integer  "account_id"
@@ -714,8 +748,8 @@ ActiveRecord::Schema.define(version: 20141113174357) do
   add_index "users", ["persistence_token"], name: "index_users_on_persistence_token", unique: true, using: :btree
 
   create_table "users_newsletters", force: true do |t|
-    t.integer  "user_id"
-    t.integer  "newsletter_id"
+    t.integer  "user_id",       null: false
+    t.integer  "newsletter_id", null: false
     t.datetime "updated_at",    null: false
   end
 
@@ -748,21 +782,31 @@ ActiveRecord::Schema.define(version: 20141113174357) do
   add_index "variant_suppliers", ["variant_id"], name: "index_variant_suppliers_on_variant_id", using: :btree
 
   create_table "variants", force: true do |t|
-    t.integer  "product_id",                                             null: false
-    t.string   "sku",                                                    null: false
+    t.integer  "product_id",                                                                    null: false
+    t.string   "sku",                                                                           null: false
     t.string   "name"
-    t.decimal  "price",          precision: 8, scale: 2, default: 0.0,   null: false
-    t.decimal  "cost",           precision: 8, scale: 2, default: 0.0,   null: false
+    t.decimal  "price",                                 precision: 8, scale: 2, default: 0.0,   null: false
+    t.decimal  "cost",                                  precision: 8, scale: 2, default: 0.0,   null: false
     t.datetime "deleted_at"
-    t.boolean  "master",                                 default: false, null: false
+    t.boolean  "master",                                                        default: false, null: false
     t.datetime "created_at"
     t.datetime "updated_at"
+    t.integer  "brand_id"
     t.integer  "inventory_id"
+    t.integer  "subscription_plan_id"
+    t.string   "title"
+    t.string   "small_description",         limit: 500
+    t.string   "option_text"
     t.integer  "image_group_id"
+    t.integer  "taxability_information_id",                                     default: 1,     null: false
+    t.text     "reoccurring_blurb"
   end
 
+  add_index "variants", ["brand_id"], name: "index_variants_on_brand_id", using: :btree
   add_index "variants", ["inventory_id"], name: "index_variants_on_inventory_id", using: :btree
   add_index "variants", ["product_id"], name: "index_variants_on_product_id", using: :btree
   add_index "variants", ["sku"], name: "index_variants_on_sku", using: :btree
+  add_index "variants", ["subscription_plan_id"], name: "index_variants_on_subscription_plan_id", using: :btree
+  add_index "variants", ["taxability_information_id"], name: "index_variants_on_taxability_information_id", using: :btree
 
 end

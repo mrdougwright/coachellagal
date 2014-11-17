@@ -9,8 +9,7 @@ module CustomValidators
 
   class Numbers
     def self.phone_number_validator
-      #/\A\d?(?:(?:[\+]?(?:[\d]{1,3}(?:[ ]+|[\-.])))?[(]?(?:[\d]{3})[\-)]?(?:[ ]+)?)?(?:[a-zA-Z2-9][a-zA-Z0-9 \-.]{6,})(?:(?:[ ]+|[xX]|(i:ext[\.]?)){1,2}(?:[\d]{1,5}))?\z/
-      /(?:\+?|\b)[0-9]{10}\b/
+      /\A\d?(?:(?:[\+]?(?:[\d]{1,3}(?:[ ]+|[\-.])))?[(]?(?:[\d]{3})[\-)]?(?:[ ]+)?)?(?:[a-zA-Z2-9][a-zA-Z0-9 \-.]{6,})(?:(?:[ ]+|[xX]|(i:ext[\.]?)){1,2}(?:[\d]{1,5}))?\z/
     end
     def self.us_and_canda_zipcode_validator
       /(\A\d{5}(-\d{4})?\z)|(\A[ABCEGHJKLMNPRSTVXYabceghjklmnprstvxy]{1}\d{1}[A-Za-z]{1} *\d{1}[A-Za-z]{1}\d{1}\z)/
@@ -32,7 +31,7 @@ module CustomValidators
 
   class Names
     def self.name_validator
-      #/([a-zA-Z-’'` ].+)/ \A and \z
+      #/([a-zA-Z-’'` ].+)/
       #/^([a-z])+([\\']|[']|[\.]|[\s]|[-]|)+([a-z]|[\.])+$/i
       #/^([a-z]|[\\']|[']|[\.]|[\s]|[-]|)+([a-z]|[\.])+$/i
       /\A([[:alpha:]]|[\\']|[']|[\.]|[\s]|[-]|)+([[:alpha:]]|[\.])+\z/i
@@ -75,22 +74,22 @@ module CustomValidators
       end
     end
     def self.visa_validator
-      /^4[0-9]{12}(?:[0-9]{3})?$/
+      /\A4[0-9]{12}(?:[0-9]{3})?\z/
     end
     def self.mastercard_validator
-      /^5[1-5][0-9]{14}$/
+      /\A5[1-5][0-9]{14}\z/
     end
     def self.american_express_validator
-      /^3[47][0-9]{13}$/
+      /\A3[47][0-9]{13}\z/
     end
     def self.diners_club_validator
-      /^3(?:0[0-5]|[68][0-9])[0-9]{11}$/
+      /\A3(?:0[0-5]|[68][0-9])[0-9]{11}\z/
     end
     def self.discover_validator
-      /^6(?:011|5[0-9]{2})[0-9]{12}$/
+      /\A6(?:011|5[0-9]{2})[0-9]{12}\z/
     end
     def self.jcb_validator
-      /^(?:2131|1800|35\d{3})\d{11}$/
+      /\A(?:2131|1800|35\d{3})\d{11}\z/
     end
   end
 end

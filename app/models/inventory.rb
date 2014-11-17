@@ -14,10 +14,18 @@
 #
 
 class Inventory < ActiveRecord::Base
-  has_one :variant
-  has_many :accounting_adjustments, as: :adjustable
+  has_many :variants
+  has_many :accounting_adjustments, :as => :adjustable
 
   validate :must_have_stock
+
+  def has_this_many_available?(qty)
+    quantity_available >= qty
+  end
+
+  def quantity_available
+    (count_on_hand - count_pending_to_customer)
+  end
 
   private
 

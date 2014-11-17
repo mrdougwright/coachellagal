@@ -2,7 +2,7 @@
 
 FactoryGirl.define do
   factory :newsletter do
-    name "MyString"
-    autosubscribe false
+    name "text-email"
+    autosubscribe true
   end
 end

@@ -36,7 +36,6 @@
 #
 
 class Address < ActiveRecord::Base
-
   belongs_to  :state
   belongs_to  :country
   belongs_to  :address_type
@@ -54,13 +53,14 @@ class Address < ActiveRecord::Base
   validates :state_id,      :presence => true,  :if => Proc.new { |address| Settings.require_state_in_address}
   validates :country_id,    :presence => true,  :if => Proc.new { |address| !Settings.require_state_in_address}
   #validates :state_name,  :presence => true,  :if => Proc.new { |address| address.state_id.blank?   }
-  validates :zip_code,    :presence => true,       :length => { :minimum => 5, :maximum => 12 }
+  validates :zip_code,    :presence => true,    :length => { :minimum => 5, :maximum => 12 }
   before_validation :sanitize_data
 
+  accepts_nested_attributes_for :phones, :reject_if => lambda { |t| ( t['display_number'].gsub(/\D+/, '').blank?) }
+
   attr_accessor :replace_address_id # if you are updating an address set this field.
-  before_create :default_to_active
   before_save :replace_address, if: :replace_address_id
-  after_save  :invalidate_old_defaults
+  after_save  :invalidate_old_defaults, :expire_cache
 
   #accepts_nested_attributes_for :phones
 
@@ -72,6 +72,12 @@ class Address < ActiveRecord::Base
   # @ return [String] first and last name on the address with a space between
   def name
     [first_name, last_name].compact.join(' ')
+  end
+
+  def phone_number
+    Rails.cache.fetch("address-phone_number-#{id}", :expires_in => 12.hours) do
+      phones.last.try(:display_number)
+    end
   end
 
   # Will inactivate and save the address
@@ -142,7 +148,6 @@ class Address < ActiveRecord::Base
     address_lines_array.join(join_chars)
   end
 
-
   def address_lines_array
     [address1, address2].delete_if{|add| add.blank?}
   end
@@ -155,6 +160,10 @@ class Address < ActiveRecord::Base
   # @return [String] state abbreviation
   def state_abbr_name
     state ? state.abbreviation : state_name
+  end
+
+  def display_state_name
+    state ? state.name : state_name
   end
 
   # Use this method to represent the "city, state.abbreviation"
@@ -171,6 +180,10 @@ class Address < ActiveRecord::Base
   # @return [String] "city, state.abbreviation"
   def state_country_name
     [state_abbr_name, country.try(:name)].compact.join(', ')
+  end
+
+  def country_code
+    country.try(:abbreviation)
   end
 
   # Use this method to represent the "city, state.abbreviation zip_code"
@@ -190,8 +203,8 @@ class Address < ActiveRecord::Base
       sanitize_address
     end
 
-    def default_to_active
-      self.active ||= true
+    def expire_cache
+      Rails.cache.delete("address-phone_number-#{id}")
     end
 
     def sanitize_zip_code

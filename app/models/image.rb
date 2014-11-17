@@ -20,13 +20,14 @@
 require 'paperclip'
 
 class Image < ActiveRecord::Base
-  belongs_to :imageable, :polymorphic => true
+  belongs_to :imageable, :polymorphic => true, :touch => true
 
   has_attached_file :photo, PAPERCLIP_STORAGE_OPTS ##  this constant is in /config/environments/*.rb
 
+#image_tag @product.photo.url(:small)
   validates_attachment_presence :photo
-  validates_attachment_size     :photo, :less_than => 5.megabytes
-  validates_attachment_content_type :photo, :content_type => ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
+  validates_attachment_size     :photo, less_than: 5.megabytes
+  validates_attachment_content_type :photo, content_type: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif']
 
   validates :imageable_type,  :presence => true
   validates :imageable_id,    :presence => true

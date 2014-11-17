@@ -9,9 +9,15 @@ class Myaccount::OverviewsController < Myaccount::BaseController
 
   def update
     @user = current_user
-    if @user.update_attributes(user_params)
-      redirect_to myaccount_overview_url(), :notice  => "Successfully updated user."
+
+    if @user.valid_password?(params[:old_password])
+      if @user.update_attributes(user_params)
+        redirect_to myaccount_overview_url(), :notice  => "Successfully updated user."
+      else
+        render :edit
+      end
     else
+      flash[:alert] = 'Your old Password is not correct.'
       render :edit
     end
   end
@@ -21,6 +27,7 @@ class Myaccount::OverviewsController < Myaccount::BaseController
     def user_params
       params.require(:user).permit(:password, :password_confirmation, :first_name, :last_name)
     end
+
     def selected_myaccount_tab(tab)
       tab == 'profile'
     end

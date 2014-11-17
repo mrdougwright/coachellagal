@@ -27,9 +27,6 @@ class VariantRequiredError < StandardError; end
 class Product < ActiveRecord::Base
   extend FriendlyId
   friendly_id :permalink, use: :finders
-  include Presentation::ProductPresenter
-  include ProductFilters
-  #include ProductSolr # If you want to use SOLR search uncomment
 
   serialize :product_keywords, Array
 
@@ -41,34 +38,39 @@ class Product < ActiveRecord::Base
   belongs_to :shipping_category
 
   has_many :product_properties
-  has_many :properties,         through: :product_properties
+  has_many :properties,          :through => :product_properties
 
   has_many :variants
+  has_many :image_groups
   has_many :images, -> {order(:position)},
                     as:        :imageable,
                     dependent: :destroy
 
-  has_many :active_variants, -> { where(deleted_at: nil) },
-    class_name: 'Variant'
-
+  has_many :active_variants,  -> { where("variants.deleted_at IS NULL") },
+                              class_name: 'Variant'
 
   before_validation :sanitize_data
-  before_validation :not_active_on_create!, on: :create
+  before_validation :not_active_on_create!, :on => :create
   before_save :create_content
+  after_save :expire_cache
 
-  accepts_nested_attributes_for :variants,           reject_if: proc { |attributes| attributes['sku'].blank? }
-  accepts_nested_attributes_for :product_properties, reject_if: proc { |attributes| attributes['description'].blank? }, allow_destroy: true
-  accepts_nested_attributes_for :images,             reject_if: proc { |t| (t['photo'].nil? && t['photo_from_link'].blank?) }, allow_destroy: true
+  accepts_nested_attributes_for :variants,            :reject_if => proc { |attributes| attributes['sku'].blank? }
+  accepts_nested_attributes_for :product_properties,  :reject_if => proc { |attributes| attributes['description'].blank? }, :allow_destroy => true
+  accepts_nested_attributes_for :images,              :reject_if => proc { |t| (t['photo'].nil? && t['photo_from_link'].blank?) }, :allow_destroy => true
 
-  validates :shipping_category_id,  presence: true
-  validates :product_type_id,       presence: true
-  validates :name,                  presence: true,   length: { maximum: 165 }
-  validates :description_markup,    presence: true,   length: { maximum: 2255 },     if: :active
-  validates :meta_keywords,         presence: true,        length: { maximum: 255 }, if: :active
-  validates :meta_description,      presence: true,        length: { maximum: 255 }, if: :active
-  validates :permalink,             uniqueness: true,      length: { maximum: 150 }
+  validates :shipping_category_id,  :presence => true
+  validates :product_type_id,       :presence => true
+  validates :name,                  :presence => true,   :length => { :maximum => 165 }
+  validates :description_markup,    :presence => true,   :length => { :maximum => 2255 },     :if => :active
+  validates :meta_keywords,         :presence => true,        :length => { :maximum => 255 }, :if => :active
+  validates :meta_description,      :presence => true,        :length => { :maximum => 255 }, :if => :active
+  validates :permalink,             :uniqueness => true,      :length => { :maximum => 150 }
 
-  validate  :ensure_available
+  PREORDER_IDS = [1,2]
+
+  def multi_option_for_preorder?
+    ProductType.main_preorder_product_type_ids.include?(product_type_id)
+  end
 
   def hero_variant
     active_variants.detect{|v| v.master } || active_variants.first
@@ -89,13 +91,13 @@ class Product < ActiveRecord::Base
   # @param [Optional Symbol] the size of the image expected back
   # @return [String] name of the file to show from the public folder
   def featured_image(image_size = :small)
-    Rails.cache.fetch("Product-featured_image-#{id}-#{image_size}", expires_in: 3.hours) do
+    Rails.cache.fetch("Product-featured_image-#{id}-#{image_size}", :expires_in => 3.hours) do
       images.first ? images.first.photo.url(image_size) : "no_image_#{image_size.to_s}.jpg"
     end
   end
 
   def image_urls(image_size = :small)
-    Rails.cache.fetch("Product-image_urls-#{id}-#{image_size}", expires_in: 3.hours) do
+    Rails.cache.fetch("Product-image_urls-#{id}-#{image_size}", :expires_in => 3.hours) do
       images.empty? ? ["no_image_#{image_size.to_s}.jpg"] : images.map{|i| i.photo.url(image_size) }
     end
   end
@@ -125,6 +127,14 @@ class Product < ActiveRecord::Base
     product_keywords ? product_keywords.join(', ') : ''
   end
 
+  # range of the product prices in plain english
+  #
+  # @param [Optional String] separator between the low and high price
+  # @return [String] Low price + separator + High price
+  def display_price_range(j = ' to ')
+    price_range.join(j)
+  end
+
   # range of the product prices (Just teh low and high price) as an array
   #
   # @param [none]
@@ -149,10 +159,9 @@ class Product < ActiveRecord::Base
   # @param [args]
   # @param [params]  :rows, :page
   # @return [ Product ]
-  def self.standard_search(args, params = {page: 1, per_page: 15})
+  def self.standard_search(args)
       Product.includes( [:properties, :images]).active.
-              where(['products.name LIKE ? OR products.meta_keywords LIKE ?', "%#{args}%", "%#{args}%"]).
-              paginate(params)
+              where(['products.name LIKE ? OR products.meta_keywords LIKE ?', "%#{args}%", "%#{args}%"])
   end
 
   # This returns the first featured product in the database,
@@ -166,7 +175,8 @@ class Product < ActiveRecord::Base
   end
 
   def self.active
-    where("products.deleted_at IS NULL OR products.deleted_at > ?", Time.zone.now)
+    #where("products.deleted_at IS NULL OR products.deleted_at > ?", Time.zone.now)
+    where(:products => {:id => Product.cached_active_ids})
     #  Add this line if you want the available_at to function
     #where("products.available_at IS NULL OR products.available_at >= ?", Time.zone.now)
   end
@@ -200,12 +210,84 @@ class Product < ActiveRecord::Base
     shipping_category.shipping_rates.exists?
   end
 
+  def self.preorders
+    active
+  end
+  # paginated results from the admin products grid
+  #
+  # @param [Optional params]
+  # @param [Optional Boolean] the state of the product you are searching (active == true)
+  # @return [ Array[Product] ]
+  def self.admin_grid(params = {}, active_state = nil)
+    grid = includes(:variants).
+                deleted_at_filter(active_state).
+                name_filter(params[:name]).
+                product_type_filter( params[:product_type_id] ).
+                shipping_category_filter(params[:shipping_category_id]).
+                available_at_gt_filter(params[:available_at_gt]).
+                available_at_lt_filter(params[:available_at_lt])
+  end
+
+  def self.cached_active_ids
+    Rails.cache.fetch("Product-cached_active_ids", :expires_in => 10.minutes) do
+      Product.where("products.deleted_at IS NULL OR products.deleted_at > ?", Time.zone.now).pluck(:id)
+    end
+  end
+
   private
 
     def has_active_variants?
       active_variants.any?{|v| v.is_available? }
     end
 
+    def self.available_at_lt_filter(available_at_lt)
+      if available_at_lt.present?
+        where("products.available_at < ?", available_at_lt)
+      else
+        all
+      end
+    end
+
+    def self.available_at_gt_filter(available_at_gt)
+      if available_at_gt.present?
+        where("products.available_at > ?", available_at_gt)
+      else
+        all
+      end
+    end
+    def self.shipping_category_filter(shipping_category_id)
+      if shipping_category_id.present?
+        where("products.shipping_category_id = ?", shipping_category_id)
+      else
+        all
+      end
+    end
+
+    def self.product_type_filter(product_type_id)
+      if product_type_id.present?
+        where("products.product_type_id = ?", product_type_id)
+      else
+        all
+      end
+    end
+
+    def self.name_filter(name)
+      if name.present?
+        where("products.name LIKE ?", "#{name}%")
+      else
+        all
+      end
+    end
+
+    def self.deleted_at_filter(active_state)
+      if active_state
+        active
+      elsif active_state == false##  note nil != false
+        where(['products.deleted_at IS NOT NULL AND products.deleted_at <= ?', Time.zone.now.to_s(:db)])
+      else
+        all
+      end
+    end
     def create_content
       self.description = BlueCloth.new(self.description_markup).to_html unless self.description_markup.blank?
     end
@@ -232,13 +314,6 @@ class Product < ActiveRecord::Base
       end
     end
 
-    def ensure_available
-      if active? && deleted_at_changed?
-        self.errors.add(:base, 'There must be active variants.')  if active_variants.blank?
-        self.errors.add(:base, 'Variants must have inventory.')   unless active_variants.any?{|v| v.is_available? }
-      end
-    end
-
     def assign_meta_keywords
       self.meta_keywords =  [name.first(55),
                             description.
@@ -248,4 +323,35 @@ class Product < ActiveRecord::Base
                             first(197)                       # limit to 197 characters
                             ].join(': ')
     end
+
+    def expire_cache
+      PAPERCLIP_STORAGE_OPTS[:styles].each_pair do |image_size, value|
+        Rails.cache.delete("Product-featured_image-#{id}-#{image_size}")
+        Rails.cache.delete("Product-image_urls-#{id}-#{image_size}")
+        Rails.cache.delete("Product-cached_active_ids")
+      end
+    end
 end
+
+## If you want to use SOLR search uncomment the following:
+=begin
+    Product.class_eval do
+      searchable do
+        text    :name, :default_boost => 2
+        text      :product_keywords#, :multiple => true
+        text      :description
+        time      :deleted_at
+      end
+
+      def self.standard_search(args, params)
+          Product.search(:include => [:properties, :images]) do
+            keywords(args)
+            any_of do
+              with(:deleted_at).greater_than(Time.zone.now)
+              with(:deleted_at, nil)
+            end
+            paginate :page => params[:page].to_i, :per_page => params[:rows].to_i#params[:page], :per_page => params[:rows]
+          end
+      end
+    end
+=end

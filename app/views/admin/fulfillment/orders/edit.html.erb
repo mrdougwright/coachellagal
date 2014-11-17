@@ -1,4 +1,4 @@
-<h2>New shipment for Order # <%= @order.number %>  </h2>
+<h2>Shipment for Order # <%= @order.number %>  </h2>
 <div class='' >
   <b>Shipment for <%= link_to @order.user.name, admin_user_path(@order.user) %></b>
 </div>
@@ -15,22 +15,39 @@
           <li> <label>Shipped:</label> <%= item.shipment.display_shipped_at %> </li>
           <li> <label>Shipping #:</label> <%= item.shipment.number %> </li>
         <% else %>
-          <li>Not Shipped Yet,  <%= item.shipping_rate.shipping_method.name %></li>
+          <li>Not Shipped Yet,  <%= item.shipping_rate.try(:shipping_method).try(:name) %></li>
         <% end %>
       </ul>
 
       <b><%= item.state.upcase %></b>
-      <% if item.paid? && !item.shipped? %>
-        <%= link_to 'Ship Individually!',
-                    admin_fulfillment_partial_order_shipments_path( @order, :order_item_ids => [item.id]),
-                    :method => 'POST', :class => 'button' %>
-      <% end %>
-    <% end %>
 
+    <% end %>
+<hr/>
     <% if @order.paid? && @order.order_items.any?(&:unshipped?) %>
       <%= link_to 'New Shipment',
                     new_admin_fulfillment_partial_order_shipment_path( @order ),
                     :class => 'button' %>
+      <% if !@order.shipped? %>
+      <br/>
+        <%= link_to 'Cancel Order',
+                    admin_fulfillment_order_path(@order, :invoice_id => @order.completed_invoices.first.try(:id) ),
+                    {:method   => 'DELETE',:class    => 'button alert',
+                    data: { confirm: 'Are you sure you want to cancel?' }}
+                     %>
+      <% end %>
+    <% elsif !@order.shipped? && !@order.canceled? %>
+      <%= link_to 'Cancel Order',
+                  admin_fulfillment_order_path(@order, :invoice_id => @order.completed_invoices.first.try(:id) ),
+                  {:method   => 'DELETE',:class    => 'button alert',
+                  data: { confirm: 'Are you sure you want to cancel?' }}
+                   %>
+    <% end %>
+    <% if current_user.super_admin? && @order.can_collect_payment? %>
+      <%= link_to 'Collect Payment',
+                  collect_admin_fulfillment_order_path(@order, :invoice_id => @order.completed_invoices.last.try(:id) ),
+                  {:method   => 'PUT',:class    => 'button success',
+                  data: { confirm: 'Are you sure you want to collect the funds?' }}
+                   %>
     <% end %>
   </div>
 </div>
@@ -38,7 +55,7 @@
   <div class='panel'>
     <h4>Shipping address</h4>
     <div class='well'>
-      <%= render :partial => '/shared/compact_address', :locals => {:shopping_address => @order.ship_address} %>
+      <%= render :partial => '/shared/compact_address', :locals => {:shopping_address => @order.ship_address} if @order.ship_address %>
     </div>
   </div>
 </div>
@@ -48,37 +65,32 @@
 <div class='clearfix'></div>
 
 <div class='row'>
-  <div class=' six large-6 ' style='text-align:left;'>
-    <% @order.invoices.each do |invoice| %>
-      <div class='panel'>
-        <h4>Invoice</h4>
-        <div id='invoice-line-<%= invoice.id %>'
-             class='order-invoice'
-             data-invoice_id='<%= invoice.id %>'
-             data-order_id='<%= @order.id %>'>
-          <%= render :partial => 'invoice_details', :locals => { :invoice => @order.invoice } %>
+  <div class=' six large-6 column' style='text-align:left;'>
+    <div class='panel'>
+      <h4>Invoice</h4>
+      <% @order.invoices.each do |invoice| %>
+        <div id='invoice-line-<%= invoice.id %>'>
+          <% if @order.invoices.last.id == invoice.id %>
+              <%= render :partial => 'invoice_details', :locals => { :invoice => @order.invoices.last } %>
+          <% end %>
         </div>
-      </div>
-    <% end %>
+      <% end %>
+    </div>
   </div>
   <div class=' six large-6 column'>
-    <b>Return Merchandise Authorization:</b>
     <div class=' panel'>
+      <h4>Return Merchandise Authorization:</h4>
       <% if @order.return_authorizations.size > 0 %>
          <%= link_to 'View RMAs', admin_rma_order_return_authorizations_path(@order),
                                   :class => 'button ' %>
          <br/><br/>
-      <% else %>
+      <% elsif @order.shipped? %>
         <%= link_to 'Create RMA', new_admin_rma_order_return_authorization_path(@order),
                                   :class => 'button ' %>
+      <% else %>
+        <p>This order has not shipped yet.</p>
       <% end %>
     </div>
-  </div>
-</div>
-
-<div id="dialog" title="Cancel Invoice">
-  <div id='dialog-message'>
-    <p>Are you sure you want to Cancel the Order and Shipment? </p>
   </div>
 </div>
 
@@ -88,9 +100,4 @@
 
 <% content_for :bottom do -%>
   <%= javascript_include_tag "admin/fulfillment" %>
-  <script>
-    <% @order.invoices.each do |invoice| %>
-     // Hadean.Utility.registerOnLoadHandler(Hadean.Fulfillment.initialize(<%= invoice.id %>, <%= @order.id %> ));
-    <% end %>
-  </script>
 <% end %>

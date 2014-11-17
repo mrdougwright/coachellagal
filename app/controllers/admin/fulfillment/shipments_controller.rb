@@ -2,7 +2,7 @@ class Admin::Fulfillment::ShipmentsController < Admin::Fulfillment::BaseControll
   # GET /admin/fulfillment/shipments
   # GET /admin/fulfillment/shipments.xml
   def index
-    @shipments = Shipment.includes([:order, {:order_items => {:variant => :product} }])
+    @shipments = Shipment.includes([:order, {:order_items => {:variant => :product} }]).admin_grid(params)
     if params[:order_id].present?
       @order = Order.find_by_number(params[:order_id])
       @shipments = @shipments.where(['shipments.order_id = ?', @order.id])
@@ -54,7 +54,7 @@ class Admin::Fulfillment::ShipmentsController < Admin::Fulfillment::BaseControll
 
     respond_to do |format|
       if @shipment.update_attributes(allowed_params)
-        format.html { redirect_to(admin_fulfillment_shipment_path(@shipment, :order_id => @shipment.order.number), :notice => 'Shipment was successfully updated.') }
+        format.html { redirect_to(edit_admin_fulfillment_shipment_path(@shipment.id, :order_id => @shipment.order.number), :notice => 'Shipment was successfully updated.') }
       else
         form_info
         format.html { render :action => "edit" }

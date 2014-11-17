@@ -27,7 +27,7 @@ describe Admin::Merchandise::VariantsController do
     get :new, :product_id => @product.id
     response.should render_template(:new)
   end
-#require(:variant).permit(:product_id, :sku, :name, :price, :cost, :deleted_at, :master, :brand_id, :inventory_id )
+
   it "create action should render new template when model is invalid" do
     Variant.any_instance.stubs(:valid?).returns(false)
     post :create, :product_id => @product.id, :variant => {:sku => '1232-abc', :name => 'variant name', :price => '20.00', :cost => '10.00', :deleted_at => nil, :master => false, :brand_id => 1}
@@ -35,8 +35,9 @@ describe Admin::Merchandise::VariantsController do
   end
 
   it "create action should redirect when model is valid" do
+    @variant = build(:variant, :product => @product)
     Variant.any_instance.stubs(:valid?).returns(true)
-    post :create, :product_id => @product.id, :variant => {:sku => '1232-abc', :name => 'variant name', :price => '20.00', :cost => '10.00', :deleted_at => nil, :master => false, :brand_id => 1}
+    post :create, :product_id => @product.id, :variant => @variant.attributes
     response.should redirect_to(admin_merchandise_product_variants_url(@product))
   end
 

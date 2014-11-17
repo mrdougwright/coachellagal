@@ -1,4 +1,5 @@
 class Customer::RegistrationsController < ApplicationController
+  skip_before_filter :redirect_to_welcome
 
   def index
     redirect_to :action => :new
@@ -12,21 +13,27 @@ class Customer::RegistrationsController < ApplicationController
   end
 
   def create
-    @user = User.new(allowed_params)
+    @user = User.get_new_user(allowed_params)
+    @user.format_birth_date(params[:user][:birth_date]) if params[:user][:birth_date].present?
     # Saving without session maintenance to skip
     # auto-login which can't happen here because
     # the User has not yet been activated
-    if @user.save#_without_session_maintenance
-      @user.deliver_activation_instructions!
-      @user.active? || @user.activate! if nil # add if you do not require email activation
+
+    @user.name_required = true
+    if agreed_to_terms? && @user.save#_without_session_maintenance
+      Resque.enqueue(Jobs::SendRegistrationEmail, @user.id)
+      @user.active? || @user.activate!
       @user_session = UserSession.new(:email => params[:user][:email], :password => params[:user][:password])
       @user_session.save
-      set_user_to_cart_items(@user)
+      set_user_to_cart_items(@user_session)
       cookies[:hadean_uid] = @user.access_token
       session[:authenticated_at] = Time.now
-      flash[:notice] = "Your account has been created. Please check your e-mail for your account activation instructions!"
+      cookies[:insecure] = false
+      flash[:notice] = "Your account has been created. "
       redirect_back_or_default root_url
     else
+      @user.valid?
+      flash[:terms_alert] = "Please agree to the term of service to proceed." unless agreed_to_terms?
       @registration = true
       @user_session = UserSession.new
       render :template => 'user_sessions/new'
@@ -37,6 +44,10 @@ class Customer::RegistrationsController < ApplicationController
 
     def allowed_params
       params.require(:user).permit(:password, :password_confirmation, :first_name, :last_name, :email)
+    end
+
+    def agreed_to_terms?
+      params[:terms] && params[:terms] == 'true'
     end
 
 end

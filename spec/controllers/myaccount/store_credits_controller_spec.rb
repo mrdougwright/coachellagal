@@ -9,6 +9,7 @@ describe Myaccount::StoreCreditsController do
 
     @user = create(:user)
     login_as(@user)
+    stub_redirect_to_welcome
   end
 
   it "show action should render show template" do

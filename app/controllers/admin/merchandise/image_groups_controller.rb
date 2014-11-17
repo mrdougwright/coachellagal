@@ -1,10 +1,10 @@
-# Image groups allow any variant to have "variant specific" images.  Thus a red shit would show as red an not green.
-
 class Admin::Merchandise::ImageGroupsController < Admin::BaseController
   helper_method :sort_column, :sort_direction, :products
   def index
+    params[:page] ||= 1
+    params[:rows] ||= 20
     @image_groups = ImageGroup.order(sort_column + " " + sort_direction).
-                                     paginate(:page => pagination_page, :per_page => pagination_rows)
+                                              paginate(:page => params[:page].to_i, :per_page => params[:rows].to_i)
   end
 
   def show

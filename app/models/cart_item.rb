@@ -21,12 +21,12 @@ class CartItem < ActiveRecord::Base
   belongs_to :cart
   belongs_to :variant
 
-  validates :item_type_id,  :presence => true
-  validates :variant_id,    :presence => true
-
   QUANTITIES = [1,2,3,4]
 
   before_save :inactivate_zero_quantity
+  validates :item_type_id,  :presence => true
+  validates :variant_id,    :presence => true
+  validates :cart_id,       :presence => true
 
   # Call this if you need to know the unit price of an item
   #
@@ -53,7 +53,7 @@ class CartItem < ActiveRecord::Base
   # @param [none]
   # @return [Boolean]
   def inactivate!
-    self.update_attributes(:active => false)
+    self.update_attributes(active: false)
   end
 
   # Call this method to determine if an item is in the shopping cart and active

@@ -25,7 +25,7 @@ class Admin::Inventory::ReceivingsController < Admin::BaseController
   def show
   end
 
-private
+  private
 
   def allowed_params
     params.require(:purchase_order).permit(:invoice_number, :tracking_number, :notes, :receive_po)
@@ -39,9 +39,5 @@ private
   def sort_column
     return 'suppliers.name' if params[:sort] == 'supplier_name'
     PurchaseOrder.column_names.include?(params[:sort]) ? params[:sort] : "id"
-  end
-
-  def sort_direction
-    %w[asc desc].include?(params[:direction]) ? params[:direction] : "asc"
   end
 end

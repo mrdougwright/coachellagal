@@ -26,118 +26,81 @@
 #     should serve you very well.
 # http://cookingandcoding.com/2010/01/14/using-activemerchant-with-authorize-net-and-authorize-cim/
 #
-require "active_merchant/billing/rails"
-
 class PaymentProfile < ActiveRecord::Base
-  include PaymentProfileCim
+  include EncryptionHelper::AES256CBC
   belongs_to :user
   belongs_to :address
 
-  attr_accessor       :request_ip, :credit_card
+  before_save :set_default_if_first_card, :save_stripe_customer
+
+  attr_accessor       :request_ip, :card_token
 
   validates :user_id,         :presence => true
-  validates :payment_cim_id,  :presence => true
   validates :cc_type,         :presence => true, :length => { :maximum => 60 }
-  validates :last_digits,     :presence => true, :length => { :maximum => 10 }
   validates :month,           :presence => true, :length => { :maximum => 6 }
   validates :year,            :presence => true, :length => { :maximum => 6 }
 
+  def stripe_card_token=(val)
+    self.card_token = val
+  end
 
-  validate            :validate_card
-  #validates :address_id,      :presence => true
+  def last4
+    @last4 ||= last_digits.present? ? unencrypted_last_digits : set_last_digits
+  end
 
-  #attr_accessible # none
+  def last_4_digits=(digits)
+    encrypt_last_digits(digits)
+  end
 
   def name
-    [cc_type, last_digits].join(' - ')
+    card_name || (stripe_card['active_card'] && stripe_card['active_card'][:name])
+  end
+  def stripe_card
+    @stripe_card ||= Stripe::Customer.retrieve(customer_token)
   end
 
   def inactivate!
     self.active = false
-    self.save!
+    self.save
   end
 
-  # Use this method to create a PaymentProfile
-  # => This method will create a new PaymentProfile and if the PaymentProfile is a default PaymentProfile it
-  # => will make all other PaymentProfiles that belong to the user non-default
-  #
-  # @param [User] user associated to the payment profile
-  # @param [Hash] hash of attributes for the new address
-  # @ return [Boolean] true or nil
-  def save_default_profile(cc_user)
-    PaymentProfile.transaction do
-      if self.default == true
-        PaymentProfile.update_all( { :default  => false},
-                            { :payment_profiles => {
-                                  :user_id => cc_user.id,
-                                            } }) if cc_user
-      end
-      self.user = cc_user
-      self.save
-    end
-  end
-  # method used by forms to credit a temp credit card
-  #
-  # ------------
-  # behave like it's
-  #   has_one :credit_card
-  #   accepts_nested_attributes_for :credit_card_info
-  #
-  # @param [none]
-  # @return [CreditCard]
-  def credit_card_info=( card_or_params )
-    self.credit_card = case card_or_params
-      when ActiveMerchant::Billing::CreditCard, nil
-        card_or_params
-      else
-        ActiveMerchant::Billing::CreditCard.new(card_or_params)
-      end
-    set_minimal_cc_data(self.credit_card)
-  end
-
-  # credit card object with known values
-  #
-  # @param [none]
-  # @return [CreditCard]
-  def new_credit_card
-    # populate new card with some saved values
-    ActiveMerchant::Billing::CreditCard.new(
-      :first_name  => user.first_name,
-      :last_name   => user.last_name,
-      # :address etc too if we have it
-      :brand        => cc_type
-    )
-  end
-
-  # -------------
   private
-
-  def set_minimal_cc_data(card)
-    self.last_digits  = card.last_digits
-    self.month        = card.month
-    self.year         = card.year
-    self.first_name   = card.first_name.strip   if card.first_name?
-    self.last_name    = card.last_name.strip    if card.last_name?
-    self.cc_type      = card.brand
-  end
-
-  def validate_card
-    return true if !self.active
-    if credit_card.nil?
-      errors.add( :base, 'Credit Card is not present.')
-      return false
+    def unencrypted_last_digits
+      decrypt(Base64.decode64(salt), Base64.decode64(last_digits))
     end
-    # first validate via ActiveMerchant local code
-    unless credit_card.valid?
-      # collect credit card error messages into the profile object
-      #errors.add(:credit_card, "must be valid")
-      credit_card.errors.full_messages.each do |message|
-        errors.add(:base, message)
+
+    def encrypt_last_digits(digits)
+      iv, ciphertext    = encrypt(digits)
+      self.salt         = Base64.encode64(iv)
+      self.last_digits  = Base64.encode64(ciphertext)
+    end
+    def encrypt_last_digits!(digits)
+      encrypt_last_digits(digits)
+      save
+    end
+
+    def set_last_digits
+      digits = stripe_card['active_card'] && stripe_card['active_card'][:last4]
+      digits.present? ? encrypt_last_digits!(digits) : ''
+      digits
+    end
+
+    def save_stripe_customer
+      if card_token.present?
+        customer = Stripe::Customer.create(
+          :description  => "Card for #{user.name}",
+          :card         => card_token, # obtained with Stripe.js
+          :email        => user.email
+        )
+        self.customer_token = customer['id']
       end
-      return
+      self.customer_token
     end
 
-    true
-  end
+    def set_default_if_first_card
+      if PaymentProfile.where('user_id = ?', user_id).count == 0
+        self.default = true
+      end
+    end
 
 end

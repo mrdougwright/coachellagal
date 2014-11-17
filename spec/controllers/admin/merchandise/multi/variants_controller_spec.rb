@@ -10,14 +10,14 @@ describe Admin::Merchandise::Multi::VariantsController do
 
   it "edit action should render edit template" do
     @product = create(:product)
-    get :edit, product_id: @product.id
+    get :edit, :product_id => @product.id
     response.should render_template(:edit)
   end
 
   it "update action should render edit template when model is invalid" do
     @product = create(:product)
     Product.any_instance.stubs(:valid?).returns(false)
-    put :update, product_id: @product.id, product: product_attributes
+    put :update, :product_id => @product.id, product: product_attributes
     response.should render_template(:edit)
   end
 
@@ -25,9 +25,7 @@ describe Admin::Merchandise::Multi::VariantsController do
     @product = create(:product)
     Product.any_instance.stubs(:valid?).returns(true)
     Variant.any_instance.stubs(:valid?).returns(true)
-    put :update, product_id: @product.id, product: product_attributes
-
-
+    put :update, :product_id => @product.id, product: product_attributes
     response.should redirect_to(admin_merchandise_product_url(@product))
   end
 
@@ -39,5 +37,4 @@ describe Admin::Merchandise::Multi::VariantsController do
                                                "2" => {"primary"=>"0", "property_id"=>"3", "description"=>""}} }
                             }}
   end
-
 end

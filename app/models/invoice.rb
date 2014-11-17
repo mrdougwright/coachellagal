@@ -20,11 +20,11 @@
 #  created_at      :datetime
 #  updated_at      :datetime
 #  credited_amount :decimal(8, 2)   default(0.0)
-#  card_token      :string(100)
-#  tax_amount      :integer
-#  tax_state_id    :integer
-#  charge_token    :string(100)
-#  customer_token  :string(100)
+#  card_token       character varying(100),
+#  tax_amount       integer,
+#  tax_state_id     integer,
+#  charge_token     character varying(100),
+#  customer_token   character varying(100),
 #
 
 class Invoice < ActiveRecord::Base
@@ -39,24 +39,37 @@ class Invoice < ActiveRecord::Base
   #validates :order_id,      :presence => true
 
   PURCHASE  = 'Purchase'
+  PREPURCHASE = 'Pre-Purchase'
   RMA       = 'RMA'
 
   INVOICE_TYPES = [PURCHASE, RMA]
   NUMBER_SEED     = 3002001004005
   CHARACTERS_SEED = 20
+  #cattr_accessor :gateway
 
+  # after_create :create_authorized_transaction
+
+  #def create_authorized_transaction
+  #
+  #end
   state_machine :initial => :pending do
     state :pending
     state :authorized
+    state :preordered
     state :paid
     state :payment_declined
     state :canceled
 
-    #after_transition :on => 'cancel', :do => :cancel_authorized_payment
+    #after_transition :on => 'return_money_and_cancel', :do => [:return_money]
+    after_transition :to => :canceled, :do => [:return_money]
 
     event :payment_rma do
       transition :from => :pending,
                   :to   => :refunded
+    end
+    event :preorder do
+      transition :from => :pending,
+                 :to   => :preordered
     end
     event :payment_authorized do
       transition :from => :pending,
@@ -64,12 +77,12 @@ class Invoice < ActiveRecord::Base
       transition :from => :payment_declined,
                   :to   => :authorized
     end
-
     event :payment_captured do
       transition :from => :authorized,
                   :to   => :paid
+      transition :from => :preordered,
+                  :to   => :paid
     end
-    
     event :payment_charge do
       transition :from => :payment_declined,
                   :to   => :paid
@@ -77,19 +90,26 @@ class Invoice < ActiveRecord::Base
                   :to   => :paid
       transition :from => :preordered, :to   => :paid
     end
-
     event :transaction_declined do
       transition :from => :pending,
                   :to   => :payment_declined
       transition :from => :payment_declined,
                   :to   => :payment_declined
+      transition :from => :preordered,
+                  :to   => :payment_declined
       transition :from => :authorized,
-                  :to   => :authorized
+                  :to   => :payment_declined
     end
 
     event :cancel do
-      transition :from => :authorized,
+      transition :from => :paid,
                   :to  => :canceled
+
+    end
+    event :return_money_and_cancel do
+      #transition :from => :paid, :to  => :canceled
+      transition :from => :authorized, :to  => :canceled
+      transition :from => :preordered, :to  => :canceled
     end
   end
 
@@ -167,6 +187,12 @@ class Invoice < ActiveRecord::Base
     invoice
   end
 
+  def log_preorder_stripe_customer_payment(customer_token, options = {})
+    self.customer_token = customer_token
+    preorder!
+    log_accounting_for_preordered_order
+  end
+
   def capture_stripe_customer_payment(customer_token, options = {})
     transaction do
       capture = Payment.stripe_customer_capture(integer_amount_charge, customer_token, order.number, options)
@@ -199,13 +225,19 @@ class Invoice < ActiveRecord::Base
 
   def capture_authorized_order
     batch       = batches.first
-    batch.transactions.push(CreditCardReceivePayment.new_capture_authorized_payment(order.user, amount))
+    batch.transactions.push(CreditCardReceivePayment.new_capture_authorized_payment(order.user, amount, decimal_tax_amount))
     batch.save
   end
 
   def capture_complete_order_without_authorization
     batch = self.batches.create()
-    batch.transactions.push(CreditCardCapture.new_capture_payment_directly(order.user, amount))
+    batch.transactions.push(CreditCardCapture.new_capture_payment_directly(order.user, amount, decimal_tax_amount))
+    batch.save
+  end
+
+  def log_accounting_for_preordered_order
+    batch = self.batches.create()
+    batch.transactions.push(CreditCardPreorder.new_preorder_payment(order.user, amount, decimal_tax_amount))
     batch.save
   end
 
@@ -213,19 +245,34 @@ class Invoice < ActiveRecord::Base
     order.complete!
     if batches.empty?
       batch = self.batches.create()
-      batch.transactions.push(CreditCardPayment.new_authorized_payment(order.user, amount))
+      batch.transactions.push(CreditCardPayment.new_authorized_payment(order.user, amount, decimal_tax_amount))
       batch.save
     else
       raise error ###  something messed up I think
     end
   end
 
+  def decimal_tax_amount
+    (tax_amount.to_f / 100.0).round_at(2)
+  end
+
   def cancel_authorized_payment
     batch       = batches.first
     if batch# if not we never authorized the payment
-      self.cancel!
-      batch.transactions.push(CreditCardCancel.new_cancel_authorized_payment(order.user, amount))
+      batch.transactions.push(CreditCardCancel.new_cancel_authorized_payment(order.user, amount, decimal_tax_amount))
+      self.return_money_and_cancel!
       batch.save
+    end
+  end
+
+  def cancel_paid_payment
+    batch       = batches.first
+    if batch# if not we never authorized the payment
+      batch.transactions.push(CreditCardCancel.new_cancel_paid_payment(order.user, amount, decimal_tax_amount))
+      self.cancel!
+      batch.save
+    else
+      raise error_no_batch_hence_something_is_wrong
     end
   end
 
@@ -241,17 +288,16 @@ class Invoice < ActiveRecord::Base
 
   def complete_rma_return
     batch       = batches.first || self.batches.create()
-    batch.transactions.push(ReturnMerchandiseComplete.new_complete_rma(order.user, amount))
+    batch.transactions.push(ReturnMerchandiseComplete.new_complete_rma(order.user, amount, decimal_tax_amount))
     batch.save
   end
-
 
   # call to find the confirmation_id sent by the payment processor.
   #
   # @param [none]
   # @return [String] id the payment processor sends you after authorization.
   def authorization_reference
-    if authorization = payments.order('id ASC').find_by(action: 'authorization', success: true )
+    if authorization = payments.order('payments.id ASC').find_by(action: 'authorization', success: true )
       authorization.confirmation_id #reference
     end
   end
@@ -273,35 +319,6 @@ class Invoice < ActiveRecord::Base
     (amount * times_x_amount).to_i
   end
 
-  def authorize_payment(credit_card, options = {})
-    options[:number] ||= unique_order_number
-    transaction do
-      authorization = Payment.authorize(integer_amount, credit_card, options)
-      payments.push(authorization)
-      if authorization.success?
-        payment_authorized!
-        authorize_complete_order
-      else
-        transaction_declined!
-      end
-      authorization
-    end
-  end
-
-  def capture_payment(options = {})
-    transaction do
-      capture = Payment.capture(integer_amount, authorization_reference, options)
-      payments.push(capture)
-      if capture.success?
-        payment_captured!
-        capture_complete_order
-      else
-        transaction_declined!
-      end
-      capture
-    end
-  end
-
   # find the user id of the order associated to the invoice.
   #
   # @param [none]
@@ -320,16 +337,22 @@ class Invoice < ActiveRecord::Base
 
   def self.admin_grid(args)
     if args[:order_number].present?
-      with_order_number(args[:order_number])
+      where("orders.number = ?", args[:order_number])
+    elsif args[:email].present?
+      where("orders.email = ?", args[:email])
     else
       all
     end
   end
 
-  def self.with_order_number(order_number)
-    where("orders.number = ?", order_number)
-  end
   private
+
+  def return_money
+    if charge_token && !order.shipped? && charge_token.present?
+      @stripe_charge ||= Stripe::Charge.retrieve(charge_token)
+      @stripe_charge.refund()
+    end
+  end
 
   def unique_order_number
     "#{Time.now.to_i}-#{rand(1000000)}"

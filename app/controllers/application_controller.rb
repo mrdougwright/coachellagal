@@ -12,8 +12,18 @@ class ApplicationController < ActionController::Base
                 :product_types,
                 :myaccount_tab,
                 :select_countries,
+                :in_production?,
+                :display_shipping_warning?,
+                :display_preorder_button?,
                 :customer_confirmation_page_view,
-                :sort_direction
+                :recent_admin_users
+
+  before_filter :redirect_without_www
+  before_filter :secure_session
+  before_filter :redirect_to_welcome
+  before_filter :authenticate_if_staging
+
+  APP_DOMAIN = 'www.ror-e.com'
 
   rescue_from CanCan::AccessDenied do |exception|
     flash[:error] = "Access denied."
@@ -27,6 +37,7 @@ class ApplicationController < ActionController::Base
   end
 
   rescue_from ActiveRecord::DeleteRestrictionError do |exception|
+    #notify_airbrake(exception)
     redirect_to :back, alert: exception.message
   end
 
@@ -34,14 +45,65 @@ class ApplicationController < ActionController::Base
     @current_ability ||= Ability.new(current_user)
   end
 
+  private
+
+  def merge_carts
+    if !!current_user
+      session_cart.merge_with_previous_cart!
+    end
+  end
+
+  def set_user_to_cart_items(user_session)
+    if session_cart.user_id != user_session.record.id
+      session_cart.update_attributes(:user_id => user_session.record.id )
+    end
+    session_cart.cart_items.each do |item|
+      item.update_attributes(:user_id => user_session.record.id ) if item.user_id != user_session.record.id
+    end
+  end
+
   def product_types
     @product_types ||= ProductType.roots
   end
 
-  private
-
   def customer_confirmation_page_view
     false
+  end
+
+  def display_shipping_warning?
+    false
+  end
+
+  def display_preorder_button?
+    true
+  end
+
+  def authenticate_if_staging
+    if Rails.env.staging?
+      authenticate_or_request_with_http_basic 'Staging' do |name, password|
+        name == 'ror-e' && password == 'David-san'
+      end
+    end
+  end
+
+  def in_production?
+    Rails.env.production?
+  end
+
+  def force_ssl
+    has_subdomain? && Settings.force_ssl
+  end
+
+  def redirect_without_www
+    if Settings.force_ssl && !/^www/.match(request.host) && (Rails.env == 'staging' || Rails.env == 'production')
+        redirect_to "https://www." + request.host_with_port + request.fullpath
+    elsif Settings.force_ssl && (Rails.env == 'staging' || Rails.env == 'production') && !request.ssl?
+        redirect_to "https://" + request.host_with_port + request.fullpath
+    end
+  end
+
+  def has_subdomain?
+    request.subdomain.present? && request.subdomain == "www" # right now only allow www
   end
 
   def pagination_page
@@ -50,12 +112,22 @@ class ApplicationController < ActionController::Base
   end
 
   def pagination_rows
-    params[:rows] ||= 25
+    params[:rows] ||= 20
     params[:rows].to_i
   end
 
   def myaccount_tab
     false
+  end
+
+  def redirect_to_welcome
+    if Settings.in_signup_period
+      redirect_to root_url unless current_user && current_user.admin?
+    end
+  end
+
+  def redirect_unless_preorder
+    redirect_to_welcome unless Settings.allow_preorders
   end
 
   def require_user
@@ -83,6 +155,18 @@ class ApplicationController < ActionController::Base
     false
   end
 
+  def secure_session
+    if Rails.env == 'production' || is_production_simulation
+      if session_cart && !request.ssl?
+        cookies[:insecure] = true
+      else
+        cookies[:insecure] = false
+      end
+    else
+      cookies[:insecure] = false
+    end
+  end
+
   def session_cart
     return @session_cart if defined?(@session_cart)
     session_cart!
@@ -90,7 +174,7 @@ class ApplicationController < ActionController::Base
   # use this method if you want to force a SQL query to get the cart.
   def session_cart!
     if cookies[:cart_id]
-      @session_cart = Cart.includes(:shopping_cart_items).find_by_id(cookies[:cart_id])
+      @session_cart = Cart.includes({:shopping_cart_items => {:variant => [:product, :image_group]}}).find_by_id(cookies[:cart_id])
       unless @session_cart
         @session_cart = Cart.create(:user_id => current_user_id)
         cookies[:cart_id] = @session_cart.id
@@ -117,25 +201,26 @@ class ApplicationController < ActionController::Base
     @random_user = cookies[:hadean_uid] ? User.find_by_persistence_token(cookies[:hadean_uid]) : nil
   end
 
-  def merge_carts
-    if !!current_user
-      session_cart.merge_with_previous_cart!
-    end
-  end
-
-  def set_user_to_cart_items(user)
-    if session_cart.user_id != user.id
-      session_cart.update_attribute(:user_id, user.id )
-    end
-    session_cart.cart_items.each do |item|
-      item.update_attribute(:user_id, user.id ) if item.user_id != user.id
-    end
-  end
-
   ###  Authlogic helper methods
   def current_user_session
     return @current_user_session if defined?(@current_user_session)
     @current_user_session = UserSession.find
+  end
+
+  def checkout_user
+    return @current_user if defined?(@current_user)
+    return @checkout_user if defined?(@checkout_user)
+    @checkout_user = checkout_user_session && checkout_user_session.record
+  end
+
+  def checkout_user_session
+    if checkout_user_session_id
+      User.find(checkout_user_session_id)
+    end
+  end
+
+  def checkout_user_session_id
+    session[:checkout_user_id]
   end
 
   def current_user
@@ -149,17 +234,12 @@ class ApplicationController < ActionController::Base
   end
 
   def redirect_back_or_default(default)
-    default = root_url if current_user && (default == login_url)
     redirect_to(session[:return_to] || default)
     session[:return_to] = nil
   end
 
   def select_countries
-    @select_countries ||= Country.form_selector
-  end
-
-  def sort_direction
-    %w[asc desc].include?(params[:direction]) ? params[:direction] : "asc"
+    @select_countries ||= Country.landing_page_form_selector
   end
 
   def cc_params
@@ -174,9 +254,11 @@ class ApplicationController < ActionController::Base
     }
   end
 
-  def expire_all_browser_cache
-    response.headers["Cache-Control"] = "no-cache, no-store, max-age=0, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "Fri, 01 Jan 1990 00:00:00 GMT"
+  def recent_admin_users
+    session[:recent_users] ||= []
+  end
+
+  def sort_direction
+    %w[asc desc].include?(params[:direction]) ? params[:direction] : "desc"
   end
 end

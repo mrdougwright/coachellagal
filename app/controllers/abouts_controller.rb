@@ -1,6 +1,5 @@
 class AboutsController < ApplicationController
-  #caches_page :show
   def show
-
+    render :nothing => true
   end
 end

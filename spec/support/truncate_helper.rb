@@ -22,7 +22,6 @@ module Hadean
                         'purchase_order_variants',
                         'return_authorizations',
                         'return_items',
-                        'referrals',
                         'shipments',
                         'shipping_categories',
                         'shipping_methods',

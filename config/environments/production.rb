@@ -1,11 +1,10 @@
 Hadean::Application.configure do
-  # Rails 4
   config.eager_load = true
   config.assets.js_compressor = :uglifier
 
   # Settings specified here will take precedence over those in config/environment.rb
 
-  config.force_ssl = true
+  config.force_ssl = false
 
   # The production environment is meant for finished, "live" apps.
   # Code is not reloaded between requests
@@ -19,8 +18,6 @@ Hadean::Application.configure do
 
   # Generate digests for assets URLs
   config.assets.digest = true
-
-  # config.assets.precompile += %w( *.css *.js )
 
   # Add the fonts path
   config.assets.paths << "#{Rails.root}/app/assets/fonts"
@@ -39,12 +36,18 @@ Hadean::Application.configure do
                                 'application.css',
                                 'chosen.css',
                                 'foundation.css',
-                                'foundation_and_overrides.css',
+                                "font-awesome-social.css",
+                                'font-awesome.css',
                                 'home_page.css',
                                 'ie.css',
                                 'ie6.css',
+                                'jquery.titanlighbox.css',# in vendor
+                                'jquery.jtweetsanywhere.css',# in vendor
                                 'login.css',
                                 'markdown.css',
+                                'markitup/skins/markitup/style.css',
+                                'markitup/skins/simple/style.css',
+                                'markitup/sets/default/style.css',
                                 'myaccount.css',
                                 'normalize.css',
                                 'pikachoose_product.css',
@@ -53,6 +56,11 @@ Hadean::Application.configure do
                                 'shopping_cart_page.css',
                                 'signup.css',
                                 'site/app.css',
+                                'site/preorder.css',
+                                'site/small_welcome.css',
+                                'site/temp_signup_form.css',
+                                'social_foundicons.css',
+                                'social_foundicons_ie7.css',
                                 'sprite.css',
                                 'tables.css',
                                 'cupertino/jquery-ui-1.8.12.custom.css',# in vendor
@@ -65,19 +73,14 @@ Hadean::Application.configure do
   config.action_controller.perform_caching = true
 
   if ENV['FOG_DIRECTORY'].present?
-    config.action_controller.asset_host = "//#{ENV['FOG_DIRECTORY']}.s3.amazonaws.com"
+    config.action_controller.asset_host = "https://#{ENV['FOG_DIRECTORY']}.s3.amazonaws.com"
   end
 
   # Specifies the header that your server uses for sending files
-  config.action_dispatch.x_sendfile_header = "X-Sendfile"
+  # config.action_dispatch.x_sendfile_header = "X-Sendfile"
 
   # For nginx:
-  # config.action_dispatch.x_sendfile_header = 'X-Accel-Redirect'
-
-  # If you have no front-end server that supports something like X-Sendfile,
-  # just comment this out and Rails will serve the files
-  config.cache_store = :memory_store
-  #config.cache_store = :dalli_store
+  config.action_dispatch.x_sendfile_header = 'X-Accel-Redirect'
 
   # See everything in the log (default is :info)
   # config.log_level = :debug
@@ -87,15 +90,17 @@ Hadean::Application.configure do
 
   # Use a different cache store in production
   # config.cache_store = :mem_cache_store
+  config.cache_store = :dalli_store
 
   # Disable Rails's static asset server
   # In production, Apache or nginx will already do this
-  config.serve_static_assets = true
+  config.serve_static_assets = false
+  config.static_cache_control = "public, max-age=3600"
 
-  # Enable serving of images, stylesheets, and javascripts from an asset server
-  # config.action_controller.asset_host = "http://assets.example.com"
+  config.action_mailer.default_url_options = { :host => 'www.coachellagal.com' }
+  config.action_mailer.asset_host = "https://www.coachellagal.com"
+  #config.action_mailer.asset_host = "//#{ENV['FOG_DIRECTORY']}.s3.amazonaws.com"
 
-  config.action_mailer.default_url_options = { :host => 'ror-e.herokuapp.com' }
   # Disable delivery errors, bad email addresses will be ignored
   # config.action_mailer.raise_delivery_errors = false
 
@@ -111,33 +116,7 @@ Hadean::Application.configure do
 
 
   config.after_initialize do
-    #Formtastic::SemanticFormBuilder.send(:include, Formtastic::DatePicker)
-    #Formtastic::SemanticFormBuilder.send(:include, Formtastic::FuturePicker)
-    #Formtastic::SemanticFormBuilder.send(:include, Formtastic::YearPicker)
-
-    ActiveMerchant::Billing::Base.mode = :test
-    #::GATEWAY = ActiveMerchant::Billing::PaypalGateway.new(
-    #  :login      => Settings.paypal.login,
-    #  :password   => Settings.paypal.password,
-    #  :signature  => Settings.paypal.signature
-    #)
-
-    ::GATEWAY = ActiveMerchant::Billing::AuthorizeNetGateway.new(
-      :login    => Settings.authnet.login,
-      :password => Settings.authnet.password,
-      :test     => true
-    )
-
-    ::CIM_GATEWAY = ActiveMerchant::Billing::AuthorizeNetCimGateway.new(
-      :login    => Settings.authnet.login,
-      :password => Settings.authnet.password,
-      :test     => true
-    )
     Paperclip::Attachment.default_options[:storage] = :s3
-    #::GATEWAY = ActiveMerchant::Billing::BraintreeGateway.new(
-    #  :login     => Settings.braintree.login,
-    #  :password  => Settings.braintree.password
-    #)
   end
   PAPERCLIP_STORAGE_OPTS = {  :styles => {:mini => '48x48>',
                                           :small => '100x100>',

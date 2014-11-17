@@ -2,11 +2,11 @@
 ENV["RAILS_ENV"] ||= 'test'
 require File.expand_path("../../config/environment", __FILE__)
 require 'rspec/rails'
-# ActiveRecord::Migration.check_pending!
+#require 'shoulda/integrations/rspec2' # Add this line
 require "authlogic/test_case"
+#require 'shoulda'
+require 'mocha/setup'
 require "email_spec"
-require "mocha/setup"
-require "factory_girl_rails"
 #require 'capybara/rspec'
 
 # Requires supporting ruby files with custom matchers and macros, etc,
@@ -19,7 +19,6 @@ Dir[Rails.root.join("spec/support/**/*.rb")].each {|f| require f}
 include Hadean::TruncateHelper
 include Hadean::TestHelpers
 include Authlogic::TestCase
-include ActiveMerchant::Billing
 
 Rails.logger.level = 4
 Settings.require_state_in_address = true
@@ -31,11 +30,12 @@ RSpec.configure do |config|
   #
   config.mock_with :mocha
   config.include FactoryGirl::Syntax::Methods
+  # config.mock_with :flexmock
+  # config.mock_with :rr
+  # config.mock_with :rspec
   config.include(EmailSpec::Helpers)
   config.include(EmailSpec::Matchers)
-  config.include Capybara::DSL
 
-  config.infer_spec_type_from_file_location!
 
   config.before(:suite) { trunctate_unseeded }
 
@@ -82,12 +82,34 @@ def registered_with_credit_user_factory
   u
 end
 
+
+#class ActionController::TestCase
+#  include Authlogic::TestCase
+#  #setup :activate_authlogic
+#end
+
 def with_solr
   Product.configuration[:if] = 'true'
   yield
   Product.configuration[:if] = false
 end
-
+  def stripe_retrieve_response
+    {
+      "description" => "Customer for site@stripe.com",
+      "livemode" => false,
+      "active_card" => {
+        "type" => "Visa",
+        "exp_month" => 3,
+        "country" => "US",
+        "exp_year" => 2013,
+        "object" => "card",
+        "last4" => "4242"
+      },
+      "created" => 1331399499,
+      "object" => "customer",
+      "id" => "cus_q080Mr9Ml6JQ0T"
+    }
+  end
   def credit_card_hash(options = {})
     { :number     => '1',
       :first_name => 'Johnny',
@@ -97,10 +119,6 @@ end
       :verification_value => '323',
       :brand       => 'visa'
     }.update(options)
-  end
-
-  def credit_card(options = {})
-    ActiveMerchant::Billing::CreditCard.new( credit_card_hash(options) )
   end
 
   # -------------Payment profile and payment could use this

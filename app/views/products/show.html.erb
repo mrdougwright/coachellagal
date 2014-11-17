@@ -6,14 +6,15 @@
 <div class=''>
 <div id='product' class=''>
 
-  <div class=' clearfix'>
+  <div class=' float-left last'>
     <% if @product.active_variants.empty? %>
-      <div id='no-variant-available' class=' four large-4 last'>
+      <div id='no-variant-available' class=' four  last'>
         Sorry this product is not currently available.
       </div>
     <% else %>
 
-      <div id='left_product_wrapper' class='columns five large-5'>
+
+      <div id='left_product_wrapper' class='columns five'>
          <!-- <ul class='horizontal-list'>
             <li><%= link_to 'Share', '#share-product', :class => 'button small share' %></li>
           </ul> -->
@@ -49,7 +50,7 @@
           <% end %>
 
       </div>
-      <div id='right_2_product_wrapper' class='six columns large-6 last'>
+      <div id='right_2_product_wrapper' class='six columns last'>
           <div id='right_product_wrapper' class=''>
             <div class='product_title_name'><%= @product.name %></div>
             <% if @product.active_variants.count > 0 %>
@@ -62,12 +63,23 @@
               <div id='your_product' class='panel'>
                 <% @product.active_variants.each_with_index do |variant, i| %>
                   <div id='variant_<%= variant.id %>'
-                       class='tiny button variant_select secondary <%= 'selected_variant' if i == 0 %>'
+                       class='button variant_select secondary <%= 'selected_variant' if i == 0 %>'
                        data-variant_id='<%= variant.id %>'>
                     <%= raw variant.product_name %>
                   </div>
                 <% end %>
                   <div  class='properties_inner_wrapper ' >
+                    <% if nil %>
+                    <% @product.active_variants.each_with_index do |var, i| %>
+                      <div id='variant_properties_<%= var.id %>' class='variant_properties <%= 'selected' if i == 0 %>'>
+                        <ul>
+                          <% var.variant_properties.each do |prop| %>
+                            <li><label><%= prop.property_name %>:</label>  <%= prop.description %></li>
+                          <% end %>
+                        </ul>
+                      </div>
+                    <% end %>
+                    <% end %>
                     <hr/>
                     <%= form_for  @cart_item,
                                   :url  => shopping_cart_items_path(@cart_item),
@@ -79,7 +91,7 @@
                         </div>
                         <div class='add_to_cart_wrapper '>
                           <% unless @product.active_variants.empty? %>
-                            <%= link_to 'Add to Cart', '#', :id => 'submit_add_to_cart', :class => 'small button' %>
+                            <%= link_to 'Add to Cart', '#', :id => 'submit_add_to_cart', :class => 'button' %>
                           <% end %>
                         </div>
                     <% end %>
@@ -88,7 +100,7 @@
               </div>
 
               <div id='product_tabs'  class='' style='padding-bottom:5px;'>
-                <div class="section-container tabs auto" style='height:100%;' data-section data-options="deep_linking: true; ">
+                <div class="section-container tabs" style='height:100%;' data-section data-options="deep_linking: true; ">
                   <section class="section">
                     <p class="title"><a >Product</a></p>
                     <div class="content">

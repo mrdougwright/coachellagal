@@ -51,6 +51,7 @@ class Admin::Config::ShippingCategoriesController < Admin::Config::BaseControlle
   #  end
   #end
 
+
   private
 
   def allowed_params

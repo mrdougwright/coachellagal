@@ -46,11 +46,9 @@ class Admin::Merchandise::BrandsController < Admin::BaseController
 
     redirect_to admin_merchandise_brands_url
   end
-
   private
 
   def allowed_params
     params.require(:brand).permit(:name)
   end
-
 end

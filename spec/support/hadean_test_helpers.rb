@@ -1,40 +1,50 @@
 module Hadean
   module TestHelpers
+    include AuthHelper
 
     def create_admin_user(args = {})
-      @uusseerr = FactoryGirl.build(:user, args)
-      @uusseerr.stubs(:set_referral_registered_at).returns(false)
-      @uusseerr.save
-      @uusseerr.stubs(:roles).returns([Role.find_by_name(Role::ADMIN)])
+      @uusseerr = FactoryGirl.create(:user, args)
+      #@uusseerr.stubs(:super_admin?).returns(false)
+      roles_mock = mock()
+      roles_mock.stubs(:name).returns(Role::ADMIN)
+      @uusseerr.stubs(:cached_role_ids).returns([Role::ADMIN_ID])
+      @uusseerr.stubs(:roles).returns([roles_mock])
       @uusseerr
     end
 
     def create_real_admin_user(args = {})
-      @uusseerr = FactoryGirl.build(:user, args)
-      @uusseerr.stubs(:set_referral_registered_at).returns(false)
-      @uusseerr.save
+      @uusseerr = FactoryGirl.create(:user, args)
       @uusseerr.role_ids = [Role.find_by_name(Role::ADMIN).id]
       @uusseerr.save
       @uusseerr
     end
     def create_super_admin_user(args = {})
-      @uusseerr = FactoryGirl.build(:user, args)
-      @uusseerr.stubs(:set_referral_registered_at).returns(false)
-      #@uusseerr.stubs(:admin?).returns(true)
-      #@uusseerr.stubs(:super_admin?).returns(false)
-      @uusseerr.stubs(:roles).returns([Role.find_by_name(Role::SUPER_ADMIN)])
-      @uusseerr.save
+      @uusseerr = FactoryGirl.create(:user, args)
+      roles_mock = mock()
+      roles_mock.stubs(:name).returns(Role::SUPER_ADMIN)
+      @uusseerr.stubs(:cached_role_ids).returns([Role::SUPER_ADMIN_ID])
+      @uusseerr.stubs(:roles).returns([roles_mock])
       @uusseerr
     end
 
     def login_as(user)
+      http_login
       user_session_for user
       controller.stubs(:current_user).returns(user)
+    end
+
+    def stub_redirect_to_welcome
+      http_login
+      @controller.stubs(:redirect_to_welcome)
     end
 
     def user_session_for(user)
       UserSession.create(user)
     end
+
+    #def current_user
+    #  UserSession.find.user
+    #end
 
     def set_current_user(user = create(:user))
       UserSession.create(user)
@@ -51,17 +61,12 @@ module Hadean
 
       @controller.stubs(:session_cart).returns(test_cart)
     end
-
-    def setup_10_dollar_referral(referring_user, referral_email, referral_user = nil, quantity_needed = 2)
-      referral_bonus    = FactoryGirl.create(:referral_bonus, :amount => 1000, :quantity_needed => quantity_needed)
-      referral_program  = FactoryGirl.create(:referral_program, :referral_bonus => referral_bonus)# refer 2 get $10
-      referral          = FactoryGirl.create(:referral,
-                          :email            => referral_email,
-                          :referring_user   => referring_user,
-                          :referral_user    => referral_user,
-                          :referral_program => referral_program,
-                          :registered_at    => nil)
-      #
-    end
+    #def admin_role
+    #  role_by_name Role::ADMIN
+    #end
+    #
+    #def role_by_name name
+    #  Role.find_by_name name
+    #end
   end
 end

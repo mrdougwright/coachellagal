@@ -7,6 +7,7 @@ describe Admin::Rma::ReturnAuthorizationsController do
     activate_authlogic
     @user = create_admin_user
     login_as(@user)
+    ReturnAuthorization.any_instance.stubs(:max_refund).returns(10000)
     @order = create(:order, :state => 'complete')
   end
 
@@ -48,21 +49,23 @@ describe Admin::Rma::ReturnAuthorizationsController do
   it "update action should render edit template when model is invalid" do
     @return_authorization = create(:return_authorization)
     ReturnAuthorization.any_instance.stubs(:valid?).returns(false)
-    put :update, :id => @return_authorization.id, :order_id => @order.id, :return_authorization => {:amount => '12.60', :user_id => 1}
+    put :update, :id => @return_authorization.id, :order_id => @order.id, :return_authorization => {:amount => '12.67'}
     response.should render_template(:edit)
   end
 
   it "update action should redirect when model is valid" do
     @return_authorization = create(:return_authorization)
     ReturnAuthorization.any_instance.stubs(:valid?).returns(true)
-    put :update, :id => @return_authorization.id, :order_id => @order.id, :return_authorization => {:amount => '12.60', :user_id => 1}
+    put :update, :id => @return_authorization.id, :order_id => @order.id, :return_authorization => {:amount => '56.02'}
     response.should redirect_to(admin_rma_order_return_authorization_url(@order, assigns[:return_authorization]))
   end
 
   it "update action should redirect when model is valid" do
+
+    ReturnAuthorization.any_instance.stubs(:return_money_to_card).returns(true)
     @return_authorization = create(:return_authorization)
     ReturnAuthorization.any_instance.stubs(:valid?).returns(true)
-    put :complete, :id => @return_authorization.id, :order_id => @order.id, :return_authorization => {:amount => '12.60', :user_id => 1}
+    put :complete, :id => @return_authorization.id, :order_id => @order.id
     ReturnAuthorization.find(@return_authorization.id).state.should == 'complete'
   end
 

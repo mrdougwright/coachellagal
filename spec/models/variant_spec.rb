@@ -10,15 +10,35 @@ describe Variant, " instance methods" do
     it 'should be sold out' do
       inventory   = create(:inventory, :count_on_hand => 100, :count_pending_to_customer => (100 - Variant::OUT_OF_STOCK_QTY))
       @variant    = create(:variant,   :inventory => inventory)
-      expect(@variant.sold_out?).to be true
+      @variant.sold_out?.should be_true
     end
 
     it 'should not be sold out' do
       inventory   = create(:inventory, :count_on_hand => 100, :count_pending_to_customer => (99 - Variant::OUT_OF_STOCK_QTY))
       @variant    = create(:variant,   :inventory => inventory)
-      expect(@variant.sold_out?).to be false
+      @variant.sold_out?.should be_false
     end
 
+  end
+
+  context "Variant.default_preorder_item" do
+    it 'should return the first active varinat if DB is wrong (DEVELOPER)' do
+      # need to have one active product
+      product = create(:product)
+      create(:variant,   :product => product)
+      product.deleted_at = nil
+      product.save
+
+      Variant.default_preorder_item.should_not be_nil
+    end
+    it 'should return the Media variant' do
+      product = create(:product)
+      product.deleted_at = nil
+      product.save
+      ProductType.stubs(:main_preorder_product_type_ids).returns([product.product_type_id])
+      default_variant = create(:variant, :product => product)
+      expect(Variant.default_preorder_item).to eq  default_variant
+    end
   end
 
 
@@ -26,19 +46,19 @@ describe Variant, " instance methods" do
       it 'should be low stock' do
         inventory   = create(:inventory, :count_on_hand => 100, :count_pending_to_customer => (101 - Variant::OUT_OF_STOCK_QTY))
         @variant    = create(:variant,   :inventory => inventory)
-        expect(@variant.low_stock?).to be true
+        @variant.low_stock?.should be_true
       end
 
       it 'should be low stock' do
         inventory   = create(:inventory, :count_on_hand => 100, :count_pending_to_customer => (100 - Variant::LOW_STOCK_QTY))
         @variant    = create(:variant,   :inventory => inventory)
-        expect(@variant.low_stock?).to be true
+        @variant.low_stock?.should be_true
       end
 
       it 'should not be low stock' do
         inventory   = create(:inventory, :count_on_hand => 100, :count_pending_to_customer => (99 - Variant::LOW_STOCK_QTY))
         @variant    = create(:variant,   :inventory => inventory)
-        expect(@variant.low_stock?).to be false
+        @variant.low_stock?.should be_false
       end
   end
 
@@ -117,7 +137,7 @@ describe Variant, " instance methods" do
         @variant.name = nil
         @variant.product.name = 'product says hello'
         @variant.stubs(:primary_property).returns  create(:variant_property, :description => 'pp_name')
-        @variant.product_name.should == 'product says hello - pp_name'
+        @variant.product_name.should == 'product says hello'
     end
   end
 
@@ -132,10 +152,18 @@ describe Variant, " instance methods" do
 
   context ".brand_name" do
     it 'should return the variants subname' do
-      brand     = create(:brand, :name => 'Reabok')
-      @product  = create(:product, brand: brand)
-      @variant.stubs(:product).returns @product
-      @variant.brand_name.should == 'Reabok'
+        brand = create(:brand, :name => 'Nike')
+        @variant.stubs(:brand).returns  brand
+        @variant.stubs(:brand_id).returns  brand.id
+        @variant.brand_name.should == 'Nike'
+    end
+    it 'should return the variants subname' do
+      @brand = create(:brand, :name => 'Reabok')
+      @product = create(:product, :brand => @brand)
+        @variant.stubs(:brand).returns  nil
+        @variant.stubs(:brand_id).returns  nil
+        @variant.stubs(:product).returns @product
+        @variant.brand_name.should == 'Reabok'
     end
   end
 
@@ -184,7 +212,7 @@ describe Variant, " instance methods" do
       inventory   = create(:inventory, :count_on_hand => 100, :count_pending_to_customer => 99)
       @variant    = create(:variant,   :inventory => inventory)
       @variant.save
-      expect(@variant.is_available?).to be true
+      @variant.is_available?.should be_true
     end
 
     it "should not be available" do
@@ -192,7 +220,7 @@ describe Variant, " instance methods" do
       inventory   = create(:inventory, :count_on_hand => 100, :count_pending_to_customer => 100)
       @variant    = create(:variant,   :inventory => inventory)
       @variant.save
-      expect(@variant.is_available?).to be false
+      @variant.is_available?.should be_false
     end
   end
 
@@ -202,7 +230,7 @@ describe Variant, " instance methods" do
       inventory   = create(:inventory, :count_on_hand => 100, :count_pending_to_customer => 99)
       @variant    = create(:variant,   :inventory => inventory)
       @variant.save
-      expect(@variant.is_available?).to be true
+      @variant.is_available?.should be_true
     end
   end
 
@@ -279,14 +307,29 @@ describe Variant, "instance method" do
 
 end
 
-describe Variant, "#admin_grid(product, params = {})" do
-  it "should return variants for a specific product" do
-    product = create(:product)
-    variant1 = create(:variant, :product => product)
-    variant2 = create(:variant, :product => product)
-    admin_grid = Variant.admin_grid(product)
-    admin_grid.size.should == 2
-    expect(admin_grid.include?(variant1)).to be true
-    expect(admin_grid.include?(variant2)).to be true
+describe Variant, "class methods" do
+  context '#admin_grid(product, params = {})' do
+    it "should return variants for a specific product" do
+      product = create(:product)
+      variant1 = create(:variant, :product_id => product.id)
+      variant2 = create(:variant, :product_id => product.id)
+      admin_grid = Variant.admin_grid(product)
+      admin_grid.size.should == 2
+      admin_grid.include?(variant1).should be_true
+      admin_grid.include?(variant2).should be_true
+    end
+  end
+  context '#active' do
+    it "should return variants for a specific product" do
+      product1 = create(:product, :deleted_at => nil)
+      product2 = create(:product, :deleted_at => (Time.zone.now - 10.seconds))
+      product1.deleted_at = nil
+      product1.save
+      variant1 = create(:variant, :product => product1)
+      variant2 = create(:variant, :product => product2)
+      variants = Variant.active.to_a
+      variants.size.should == 1
+      expect(variants.map(&:id)).to eq [variant1.id]
+    end
   end
 end

@@ -10,13 +10,13 @@ describe ShippingRate, 'instance methods' do
     it "should return true" do
       ship_rate_type = ShippingRateType.find_by_name('Individual')
       @shipping_rate.shipping_rate_type = ship_rate_type
-      expect(@shipping_rate.individual?).to be true
+      @shipping_rate.individual?.should be_true
     end
 
     it "should return true" do
       ship_rate_type = ShippingRateType.find_by_name('Order')
       @shipping_rate.shipping_rate_type = ship_rate_type
-      expect(@shipping_rate.individual?).to be false
+      @shipping_rate.individual?.should be_false
     end
   end
 

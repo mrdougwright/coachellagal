@@ -38,12 +38,12 @@ describe PurchaseOrderVariant, "instance methods" do
     #is_received
     it 'should be true' do
       @purchase_order_variant.is_received = true
-      expect(@purchase_order_variant.receive_po).to be true
+      @purchase_order_variant.receive_po.should be_true
     end
 
     it 'should call receive if 0' do
       @purchase_order_variant.is_received = false
-      expect(@purchase_order_variant.receive_po).to be false
+      @purchase_order_variant.receive_po.should be_false
     end
   end
 end

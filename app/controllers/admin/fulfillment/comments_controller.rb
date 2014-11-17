@@ -3,16 +3,16 @@ class Admin::Fulfillment::CommentsController < Admin::Fulfillment::BaseControlle
 
   def index
     respond_to do |format|
-      format.json { render json: order.comments.to_json, status: 206}
-      format.html { render action: 'index' }
+      format.json { render :json => order.comments.to_json, :status => 206}
+      format.html { render :action => 'index' }
     end
   end
 
   def show
     @comment = order.comments.find(params[:id])
     respond_to do |format|
-      format.json { render json: @comment.to_json}
-      format.html { render action: 'show' }
+        format.json { render :json => @comment.to_json}
+        format.html { render :action => 'show' }
     end
   end
 
@@ -27,11 +27,11 @@ class Admin::Fulfillment::CommentsController < Admin::Fulfillment::BaseControlle
     respond_to do |format|
       if @comment.save
         flash[:notice] = "Successfully created comment."
-        format.json { render json: @comment.to_json}
-        format.html { render action: 'show' }
+        format.json { render :json => @comment.to_json}
+        format.html { render :action => 'show' }
       else
-        format.json { render json: @comment.errors.to_json }
-        format.html { render action: 'new' }
+        format.json { render :json => @comment.errors.to_json }
+        format.html { render :action => 'new' }
       end
     end
   end
@@ -45,11 +45,11 @@ class Admin::Fulfillment::CommentsController < Admin::Fulfillment::BaseControlle
     respond_to do |format|
       if @comment.update_attributes(allowed_params)
         flash[:notice] = "Successfully updated comment."
-        format.json { render json: @comment.to_json}
+        format.json { render :json => @comment.to_json}
         format.html { redirect_to admin_fulfillment_order_comment_url(order, @comment) }
       else
-        format.json { render json: @comment.errors.to_json }
-        format.html { render action: 'edit' }
+        format.json { render :json => @comment.errors.to_json }
+        format.html { render :action => 'edit' }
       end
     end
   end
@@ -68,6 +68,7 @@ class Admin::Fulfillment::CommentsController < Admin::Fulfillment::BaseControlle
   end
 
   def order
-    @order ||= Order.find_by_number(params[:order_id])
+    return @order if @order
+    @order = Order.find_by_number(params[:order_id])
   end
 end

@@ -2,7 +2,6 @@ class Admin::Merchandise::Changes::PropertiesController < Admin::BaseController
   helper_method :all_properties
   before_filter :get_product
   def edit
-    #@product.product_properties.build
   end
 
   def update
@@ -25,7 +24,7 @@ class Admin::Merchandise::Changes::PropertiesController < Admin::BaseController
   end
 
   def get_product
-    @product = Product.find_by(id: params[:product_id])
+    @product = Product.find_by_id(params[:product_id])
   end
 
 end

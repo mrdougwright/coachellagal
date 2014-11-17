@@ -1,12 +1,12 @@
 require  'spec_helper'
 
-describe Admin::Config::ShippingCategoriesController, type: :controller do
+describe Admin::Config::ShippingCategoriesController do
   render_views
 
   before(:each) do
     activate_authlogic
 
-    @user = create_super_admin_user
+    @user = create_admin_user
     login_as(@user)
   end
 

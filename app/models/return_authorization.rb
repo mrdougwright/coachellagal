@@ -27,7 +27,7 @@ class ReturnAuthorization < ActiveRecord::Base
 
   accepts_nested_attributes_for :return_items,  :reject_if => proc { |attributes| attributes['return_reason_id'].blank? ||
                                                                                   attributes['return_condition_id'].blank? }
-  accepts_nested_attributes_for :comments,      :reject_if => proc { |attributes| attributes['note'].blank? }
+  accepts_nested_attributes_for :comments,      :reject_if => proc { |attributes| attributes['note'].strip.blank? }
 
   #validates :number,      :presence => true
   validates :amount,      :presence     => true,
@@ -50,6 +50,7 @@ class ReturnAuthorization < ActiveRecord::Base
     #after_transition :to => 'received', :do => :process_receive
     #after_transition :to => 'cancelled', :do => :process_canceled
     before_transition :to => 'complete', :do => [:process_ledger_transactions, :mark_items_returned]
+    after_transition  :to => 'complete', :do => [:return_money_to_card]
 
     event :receive do
       transition :to => 'received', :from => 'authorized'
@@ -77,6 +78,10 @@ class ReturnAuthorization < ActiveRecord::Base
     return_items.map(&:mark_returned!)
   end
 
+  def amount_in_cents
+    (amount * 100.0).to_i
+  end
+
   # number of the order that is returning the item
   #
   # @param [none]
@@ -99,7 +104,7 @@ class ReturnAuthorization < ActiveRecord::Base
   # @return [none]
   def set_number
     return set_order_number if self.id
-    self.number = (Time.now.to_i).to_s(CHARACTERS_SEED)## fake number for validator
+    self.number = (Time.now.to_i).to_s(CHARACTERS_SEED)## fake number for friendly_id validator
   end
 
   # sets the order ReturnAuthorization based off constants and the ReturnAuthorization id
@@ -153,6 +158,11 @@ class ReturnAuthorization < ActiveRecord::Base
     grid
   end
 
+  def max_refund
+    @stripe_charge ||= Stripe::Charge.retrieve(order.completed_invoices.last.charge_token)
+    (@stripe_charge[:amount] - @stripe_charge[:amount_refunded])
+  end
+
   private
 
   # rma validation, if the rma amount is less than the restocking fee why would anyone return an item
@@ -163,5 +173,15 @@ class ReturnAuthorization < ActiveRecord::Base
     if restocking_fee && restocking_fee >= amount
       self.errors.add(:amount, "The amount must be larger than the restocking fee.")
     end
+
+    if amount > (max_refund.to_f / 100.0)
+      self.errors.add(:amount, "The amount can not exceed #{max_refund.to_f / 100.0}.")
+    end
   end
+
+  def return_money_to_card
+    @stripe_charge ||= Stripe::Charge.retrieve(order.completed_invoices.last.charge_token)
+    @stripe_charge.refund(:amount => amount_in_cents)
+  end
+
 end

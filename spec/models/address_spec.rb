@@ -25,10 +25,10 @@ describe Address, "methods" do
                           :state   => state,
                           :state_name => 'CA',
                           :zip_code   => '13156',
-                          :address_type_id  => 1#,
+                          :address_type_id  => 1,
                           #:addressable_type => 'User',
                           #:addressable_id   => 1,
-                          #:active           => true
+                          :active           => true
                           )
   end
 
@@ -42,7 +42,7 @@ describe Address, "methods" do
     it 'should inactivate the address' do
       @address.save
       @address.inactive!
-      expect(@address.active).to be false
+      @address.active.should be_false
     end
   end
 
@@ -141,10 +141,10 @@ describe Address, "methods" do
                           :city       => ' Fredville ',
                           :state_name => 'CA',
                           :zip_code   => ' 13156 ',
-                          :address_type_id  => 1#,
+                          :address_type_id  => 1,
                           #:addressable_type => 'User',
                           #:addressable_id   => 1,
-                          #:active           => true
+                          :active           => true
                           )
 
     address.send(:sanitize_data)
@@ -162,7 +162,7 @@ describe Address, "#save" do
 
   before(:each) do
     @user     = FactoryGirl.create(:user)
-    @address  = FactoryGirl.create(:address, addressable: @user)
+    @address  = FactoryGirl.create(:address, :addressable => @user)
   end
 
   it "should only the last default address should be the default address" do
@@ -174,9 +174,10 @@ describe Address, "#save" do
     @address2.save
     @address.default = true
     @address.save
-    expect(@address.default).to       be true
-    expect(@address2.reload.default).not_to  be true
-    expect(@address3.reload.default).to  be true # should only update the addresses that belong to that user
+    @address.default.should       be_true
+    @address2.reload.default.should_not  be_true
+    @address2.reload.default.should_not  be_true
+    @address3.reload.default.should  be_true # should only update the addresses that belong to that user
   end
 end
 

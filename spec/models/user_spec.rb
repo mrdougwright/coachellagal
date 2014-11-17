@@ -13,22 +13,92 @@ describe User do
   end
 
   context "Invalid User" do
+    before(:each) do
+      @user = build(:user, :form_birth_date => '05/05/1900')
+    end
 
-    it "should be valid without first_name" do
-      @user = build(:user, :first_name => '')
+    it "should be valid with minimum attributes(Too old)" do
+      @user = build(:user, :form_birth_date => '05/05/1900')
       @user.should_not be_valid
     end
 
+    it "should be valid with minimum attributes(Not born yet)" do
+      now = Time.now + 10.days
+      @user = build(:user, :form_birth_date => now.strftime("%m/%d/%Y"))
+      @user.should_not be_valid
+    end
   end
 end
 
+describe User, ".form_birth_date(val)" do
+  it "should return the correct b-day" do
+    user = create(:user, :form_birth_date => '05/18/1975')
+    #should_receive(:authenticate).with("password").and_return(true)
+    user.birth_date.should_not be_blank
+    user.form_birth_date.should == '05/18/1975'
+    #ActiveSupport::TimeZone.us_zones.map(&:to_s).include?(user.time_zone).should be_true
+  end
+
+  it "should return the correct b-day" do
+    user = create(:user, :form_birth_date => '')
+    #should_receive(:authenticate).with("password").and_return(true)
+    user.birth_date.should be_blank
+    user.form_birth_date.should == nil
+    #ActiveSupport::TimeZone.us_zones.map(&:to_s).include?(user.time_zone).should be_true
+  end
+end
+
+describe User, '#get_new_user(args)' do
+  it 'should grab the current signedin user if they have never had a password' do
+    user = build(:user, :password => nil, :password_confirmation => nil)
+    user.state = 'signed_up'
+    user.save!
+    args = {:email => user.email, :password => 'GoodPass1!', :password_confirmation => 'GoodPass1!', :first_name => 'dav',:last_name => 'H'}
+
+    new_user = User.get_new_user(args)
+    new_user.new_record?.should be_false
+  end
+  it 'should be invalid user if the user has a password' do
+    user = create(:user)
+    args = {:email => user.email, :password => 'GoodPass1!', :password_confirmation => 'GoodPass1!', :first_name => 'dav',:last_name => 'H'}
+
+    new_user = User.get_new_user(args)
+    new_user.new_record?.should be_true
+    new_user.valid?.should be_false # duplicate email
+    new_user.errors.has_key?(:email).should be_true # duplicate email
+  end
+  it 'should not grab current signedin user if they have never had a password' do
+    user = create(:user)
+    args = {:email => 'different@email.com'}
+
+    new_user = User.get_new_user(args)
+    new_user.new_record?.should be_true
+  end
+end
+
+
 describe User, ".name" do
   it "should return the correct name" do
-    user = build(:user)
+    user = build(:registered_user)
     #should_receive(:authenticate).with("password").and_return(true)
     user.stubs(:first_name).returns("Fred")
     user.stubs(:last_name).returns("Flint")
     user.name.should == "Fred Flint"
+  end
+end
+
+describe User, '.registered_user?' do
+  it "should return false for an unregistered user" do
+    user = build(:user)
+    user.registered_user?.should be_false
+  end
+  it "should return true for a registered user" do
+    user = registered_user_factory
+    user.registered_user?.should be_true
+  end
+  it "should return true for a user registered_with_credit" do
+    user = registered_with_credit_user_factory
+    user.registered_user?.should be_true
   end
 end
 
@@ -39,19 +109,19 @@ describe User, "instance methods" do
   end
 
   context ".admin?" do
-    it 'ahould be an admin' do
+    it 'should be an admin' do
       user = create_admin_user
-      expect(user.admin?).to be true
+      user.admin?.should be_true
     end
 
-    it 'ahould be an admin' do
+    it 'should be an admin' do
       user = create_super_admin_user
-      expect(user.admin?).to be true
+      user.admin?.should be_true
     end
 
-    it 'ahould not be an admin' do
+    it 'should not be an admin' do
       user = create(:user)
-      expect(user.admin?).to be false
+      user.admin?.should be_false
     end
   end
 end
@@ -65,11 +135,26 @@ describe User, "instance methods" do
   context ".active?" do
     it 'should not be active' do
       @user.state = 'canceled'
-      expect(@user.active?).to be false
+      @user.active?.should be_false
       @user.state = 'inactive'
-      expect(@user.active?).to be false
+      @user.active?.should be_false
     end
 
+    it 'should be active' do
+      @user.state = 'unregistered'
+      @user.active?.should be_true
+      @user.state = 'registered'
+      @user.active?.should be_true
+    end
+  end
+
+  context ".role?(role_name)" do
+    it 'should be active' do
+      @user.state = 'unregistered'
+      @user.active?.should be_true
+      @user.state = 'registered'
+      @user.active?.should be_true
+    end
   end
 
   context ".display_active" do
@@ -78,13 +163,8 @@ describe User, "instance methods" do
       @user.display_active.should == 'false'
     end
 
-    it 'should not be active' do
-      @user.state = 'inactive'
-      @user.display_active.should == 'false'
-    end
-
     it 'should be active' do
-      @user.state = 'active'
+      @user.state = 'unregistered'
       @user.display_active.should == 'true'
     end
   end
@@ -102,10 +182,23 @@ describe User, "instance methods" do
   context ".might_be_interested_in_these_products" do
     it 'should find products' do
       product = create(:product)
-      expect(@user.might_be_interested_in_these_products.include?(product)).to be true
+      @user.might_be_interested_in_these_products.include?(product).should be_true
     end
 
     #pending "add your specific find products method here"
+  end
+
+  context ".format_birth_date(b_date)" do
+    it 'should return a US date formatted correctly' do
+      @user.format_birth_date('12/17/1975')
+      @user.birth_date.should_not be_nil
+      @user.birth_date.strftime('%m/%d/%Y').should == '12/17/1975'
+    end
+
+    it 'should return nil if no date is given' do
+      @user.format_birth_date('')
+      @user.birth_date.should be_nil
+    end
   end
 
   context ".billing_address" do
@@ -154,16 +247,24 @@ describe User, "instance methods" do
   end
 
   context ".registered_user?" do
-    # registered?
+    # registered? || registered_with_credit?
+    it 'should be true for a registered user' do
+      @user.register!
+      @user.registered_user?.should be_true
+    end
+    it 'should be true for a registered_with_credit user' do
+      @user.state = 'registered_with_credit'
+      @user.registered_user?.should be_true
+    end
 
     it 'should not be a registered user' do
       @user.state = 'active'
-      expect(@user.registered_user?).to be true
+      @user.registered_user?.should be_false
     end
 
     it 'should not be a registered user' do
       @user.state = 'canceled'
-      expect(@user.registered_user?).to be false
+      @user.registered_user?.should be_false
     end
   end
 
@@ -184,16 +285,24 @@ describe User, "instance methods" do
   end
 
   context ".deliver_activation_instructions!" do
+    before do
+      ResqueSpec.reset!
+    end
     #pending "test for deliver_activation_instructions!"
-    #Notifier.signup_notification(self).deliver
-    # @order_item.order.expects(:calculate_totals).once
     it 'should call signup_notification and deliver' do
-      sign_up_mock = mock()
-      #Notifier.stubs(:signup_notification).returns(sign_up_mock)
-      Notifier.expects(:signup_notification).once.returns(sign_up_mock)
-      sign_up_mock.stubs(:deliver)
-      sign_up_mock.expects(:deliver).once
       @user.deliver_activation_instructions!
+      Jobs::SendSignUpNotification.should have_queued(@user.id).in(:signup_notification_emails)
+    end
+  end
+
+  context ".deliver_password_reset_instructions!" do
+    before do
+      ResqueSpec.reset!
+    end
+    #pending "test for deliver_password_reset_instructions!"
+    it 'should call deliver_password_reset_instructions and deliver' do
+      @user.deliver_password_reset_instructions!
+      Jobs::SendPasswordResetInstructions.should have_queued(@user.id).in(:password_reset_emails)
     end
   end
 
@@ -205,10 +314,6 @@ describe User, "instance methods" do
       @user.last_name   = 'Commerce'
       @user.email_address_with_name.should == '"Dave Commerce" <myfake@email.com>'
     end
-  end
-
-  context ".get_cim_profile" do
-    skip "test for get_cim_profile"
   end
 
   context ".merchant_description" do
@@ -254,29 +359,37 @@ describe User, 'private methods' do
   context ".password_required?" do
     it 'should require a password if the crypted password is blank' do
       @user.crypted_password = nil
-      expect(@user.send(:password_required?)).to be true
+      @user.send(:password_required?).should be_true
     end
 
     it 'should not require a password if the crypted password is present' do
       @user.crypted_password = 'blah'
-      expect(@user.send(:password_required?)).to be false
+      @user.send(:password_required?).should be_false
     end
-  end
-
-  context ".create_cim_profile" do
-    skip "test for create_cim_profile"
   end
 
   context ".before_validation_on_create" do
     #Notifier.expects(:signup_notification).once.returns(sign_up_mock)
     it 'should assign the access_token' do
-      user = build(:user)
-      user.expects(:before_validation_on_create).once
-      user.save
+      @user.expects(:before_validation_on_create).once
+      @user.save
     end
     it 'should assign the access_token' do
       @user.save
       @user.access_token.should_not be_nil
+    end
+  end
+
+  context ".subscribe_to_newsletters" do
+    before do
+      @newsletter = create(:newsletter, :autosubscribe => true, :mailchimp_list_id => "abc")
+      ResqueSpec.reset!
+    end
+
+    it 'should enqueue a job to subscribe to mailchimp list' do
+      @user.save
+      @user.send(:subscribe_to_newsletters)
+      Jobs::SubscribeUserToMailChimpList.should have_queued(@user.id, @newsletter.id).in(:subscribe_user_to_mail_chimp_list)
     end
   end
 
@@ -285,9 +398,9 @@ describe User, 'private methods' do
     it 'should return a hash of user info' do
       @user.save
       profile = @user.send(:user_profile)
-      expect(profile.keys.include?(:merchant_customer_id)).to be true
-      expect(profile.keys.include?(:email)).to be true
-      expect(profile.keys.include?(:description)).to be true
+      profile.keys.include?(:merchant_customer_id).should be_true
+      profile.keys.include?(:email).should be_true
+      profile.keys.include?(:description).should be_true
     end
   end
 end
@@ -299,7 +412,7 @@ describe User, "#admin_grid(params = {})" do
     user2 = create(:user)
     admin_grid = User.admin_grid
     admin_grid.size.should == 2
-    expect(admin_grid.include?(user1)).to be true
-    expect(admin_grid.include?(user2)).to be true
+    admin_grid.include?(user1).should be_true
+    admin_grid.include?(user2).should be_true
   end
 end

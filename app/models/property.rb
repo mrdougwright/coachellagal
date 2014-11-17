@@ -9,8 +9,8 @@ class Property < ActiveRecord::Base
   has_many :variant_properties
   has_many :variants,          :through => :variant_properties
 
-  validates :identifing_name,    :presence => true, :length => { :maximum => 250 }
-  validates :display_name,       :presence => true, :length => { :maximum => 165 }
+  validates :identifing_name,    presence: true, :length => { :maximum => 250 }
+  validates :display_name,       presence: true, :length => { :maximum => 165 }
   # active is default true at the DB level
 
   scope :visible, -> {where(active: true)}
@@ -26,7 +26,8 @@ class Property < ActiveRecord::Base
   def self.admin_grid(params = {})
 
     grid = Property
-    grid = grid.where("active = ?",true) unless params[:show_all].present? && params[:show_all] == 'true'
+    grid = grid.where("active = ?",true)                    unless  params[:show_all].present? &&
+                                                              params[:show_all] == 'true'
     grid = grid.where("properties.display_name LIKE ?", "#{params[:display_name]}%")  if params[:display_name].present?
     grid = grid.where("properties.identifing_name LIKE ?", "#{params[:identifing_name]}%")  if params[:identifing_name].present?
     grid

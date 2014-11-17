@@ -42,6 +42,8 @@ class Shopping::BillingAddressesController < Shopping::BaseController
   end
 
   def update
+    args = params[:address].clone
+    args[:phones_attributes].each_pair{|i,p| p.delete('id')} if args[:phones_attributes].present?
     @shopping_address = current_user.addresses.new(allowed_params)
     @shopping_address.replace_address_id = params[:id] # This makes the address we are updating inactive if we save successfully
 
@@ -56,10 +58,11 @@ class Shopping::BillingAddressesController < Shopping::BaseController
         # the form needs to have an id
         @form_address = current_user.addresses.find(params[:id])
         # the form needs to reflect the attributes to customer entered
+        params[:address].delete('phones_attributes')
         @form_address.attributes = allowed_params
         @form_address.phones.build if @form_address.phones.empty?
         @states     = State.form_selector
-        render action: "edit"
+        render :action => "edit"
       end
   end
 
@@ -71,7 +74,7 @@ class Shopping::BillingAddressesController < Shopping::BaseController
 
   def destroy
     @shopping_address = Address.find(params[:id])
-    @shopping_address.update_attributes(active: false)
+    @shopping_address.update_attributes(:active => false)
 
     redirect_to(shopping_billing_addresses_url)
   end
@@ -100,4 +103,9 @@ class Shopping::BillingAddressesController < Shopping::BaseController
                           :bill_address_id => id
                                     )
   end
+
+  def countries
+    @countries ||= Country.active
+  end
+
 end

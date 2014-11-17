@@ -11,10 +11,7 @@ class Admin::Fulfillment::OrdersController < Admin::Fulfillment::BaseController
   def show
     @order = Order.includes([:user, :shipments, {:order_items => [:shipment, :variant]}]).find(params[:id])
     add_to_recent_user(@order.user)
-    respond_to do |format|
-      format.html # show.html.erb
-      format.xml  { render :xml => @order }
-    end
+    render :edit
   end
 
   # GET /admin/fulfillment/orders/1/edit
@@ -30,6 +27,31 @@ class Admin::Fulfillment::OrdersController < Admin::Fulfillment::BaseController
       Shipment.create_shipments_with_items(@order)
       @order.reload
     end
+  end
+
+  def collect
+    # Collect payment for preorders
+    @order = Order.includes(:order_items).find(params[:id])
+    unless @order.paid?
+      if @order.all_in_stock?
+        Order.transaction do
+          @order.pay!
+          @order.update_inventory
+
+          invoice_statement = Invoice.where('order_id = ?', @order.id).last
+          invoice_statement.capture_stripe_customer_payment(invoice_statement.customer_token)
+        end
+      else
+        flash[:alert] = 'This order is not ready.  Some items are not in stock!'
+      end
+    else
+      flash[:alert] = 'This order has already been paid!'
+    end
+    redirect_to edit_admin_fulfillment_order_url(@order)
+  rescue Stripe::CardError => e
+    flash[:alert] = e.message
+    @order = Order.includes([:user, :shipments, {:order_items => [:shipment, :variant]}]).find(params[:id])
+    render :edit
   end
 
   # PUT /admin/fulfillment/orders/1
@@ -57,16 +79,15 @@ class Admin::Fulfillment::OrdersController < Admin::Fulfillment::BaseController
     end
   end
 
-  # DELETE /admin/fulfillment/shipments/1
-  # DELETE /admin/fulfillment/shipments/1.xml
+  # DELETE /admin/fulfillment/orders/1
   def destroy
-
     @order    = Order.find(params[:id])
-    @invoice  = @order.invoices.find(params[:invoice_id])
+    redirect_to admin_fulfillment_order_url(@order) and return if @order.canceled?
+    @invoice  = @order.invoices.find_by_id(params[:invoice_id])
 
     @order.cancel_unshipped_order(@invoice)
     respond_to do |format|
-      format.html { render :partial => 'invoice_details', :locals => {:invoice => @invoice} }
+      format.html { render :edit }
       format.json { render :json => @order.to_json }
     end
   end

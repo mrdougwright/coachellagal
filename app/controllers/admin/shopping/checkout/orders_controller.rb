@@ -1,4 +1,5 @@
 class Admin::Shopping::Checkout::OrdersController < Admin::Shopping::Checkout::BaseController
+  helper_method :customer
   ### The intent of this action is two fold
   #
   # A)  if there is a current order redirect to the process that
@@ -17,7 +18,15 @@ class Admin::Shopping::Checkout::OrdersController < Admin::Shopping::Checkout::B
       if @order.order_items.empty?
         redirect_to admin_shopping_products_url() and return
       end
-      @credit_card ||= ActiveMerchant::Billing::CreditCard.new(cc_params)
+      form_info
+    end
+  end
+
+  def total
+    @order = find_or_create_order
+    @order.credited_total
+    respond_to do |format|
+      format.json  { render :json => @order.to_json(:only => [:number, :integer_credited_total], :methods => [:integer_credited_total]) }
     end
   end
 
@@ -36,7 +45,7 @@ class Admin::Shopping::Checkout::OrdersController < Admin::Shopping::Checkout::B
     @order = session_admin_order
     @order.ip_address = request.remote_ip
 
-    @credit_card ||= ActiveMerchant::Billing::CreditCard.new(cc_params)
+    form_info
 
     address = @order.bill_address.cc_params
 
@@ -44,12 +53,14 @@ class Admin::Shopping::Checkout::OrdersController < Admin::Shopping::Checkout::B
       session_admin_cart.mark_items_purchased(@order)
       flash[:alert] = I18n.t('the_order_purchased')
       redirect_to admin_history_order_url(@order)
-    elsif @credit_card.valid?
-      if response = @order.create_invoice(@credit_card,
+    elsif payment_profile
+      @order.payment_profile = @payment_profile
+      @order.save
+      if invoice = @order.create_invoice(@credit_card,
                                           @order.credited_total,
-                                          {:email => @order.email, :billing_address=> address, :ip=> @order.ip_address },
+                                          payment_profile,
                                           @order.amount_to_credit)
-        if response.succeeded?
+        if invoice.succeeded?
           order_completed!(@order)
           redirect_to admin_history_order_url(@order)
         else
@@ -68,8 +79,49 @@ class Admin::Shopping::Checkout::OrdersController < Admin::Shopping::Checkout::B
 
   private
 
-  def form_info
+  def show_right_panel_summary
+    true
+  end
 
+  def form_info
+    @payment_profiles = customer.active_payment_profiles
+    @order.credited_total
+  end
+
+  def customer
+    @customer ||= @order.user
+  end
+
+  def payment_profile
+    return @payment_profile if @payment_profile
+    if create_a_new_profile?
+      @payment_profile = @order.user.payment_profiles.new(cc_params)
+      @payment_profile.active = save_card?
+      @payment_profile.save!
+      @payment_profile
+    elsif params[:use_credit_card_on_file].present? #charge the profile
+      @payment_profile = @order.user.payment_profiles.find_by_id(params[:use_credit_card_on_file])
+    end
+  end
+
+  def create_a_new_profile?
+    params[:stripe_card_token].present?
+  end
+
+  def save_card?
+    params[:save_card] == '1'
+  end
+
+  def cc_params
+    {
+    "card_name"         => params[:full_name],
+    "stripe_card_token" => params[:stripe_card_token],
+    "cc_type"           => params[:brand],
+    "month"             => params[:month],
+    "year"              => params[:year],
+    "active"            => save_card?,
+    :address_id         => @order.bill_address_id}
   end
 
 end
+

@@ -24,7 +24,7 @@ class Admin::Config::ShippingZonesController < Admin::Config::BaseController
     @shipping_zone = ShippingZone.new(allowed_params)
 
     if @shipping_zone.save
-      redirect_to(admin_config_shipping_zones_url(), :notice => 'Shipping zone was successfully created.')
+      redirect_to(admin_config_shipping_zones_url(), notice: 'Shipping zone was successfully created.')
     else
       render :action => "new"
     end
@@ -35,7 +35,7 @@ class Admin::Config::ShippingZonesController < Admin::Config::BaseController
     @shipping_zone = ShippingZone.find(params[:id])
 
     if @shipping_zone.update_attributes(allowed_params)
-      redirect_to(admin_config_shipping_zones_url(), :notice => 'Shipping zone was successfully updated.')
+      redirect_to(admin_config_shipping_zones_url(), notice: 'Shipping zone was successfully updated.')
     else
       render :action => "edit"
     end

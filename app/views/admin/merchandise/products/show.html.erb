@@ -2,17 +2,19 @@
 
 <h3>Product: <%= @product.name %></h3>
 
+<%= link_to "Edit Product", edit_admin_merchandise_product_path(@product), :class => 'button small alert' %>
+
 <span style='color:<%= @product.active ? "#3A3" : "#C33" %>; float:right; margin-top: -45px'>
   <% if @product.active? %>
     <%= link_to 'Make Inactive', admin_merchandise_product_path(@product),
-                          :method => :delete,
-                          :data => {:confirm => "This will inactivate the product,  Are you sure?"},
-                          :class => 'button green-button' %>
+                          method: :delete,
+                          data: { confirm: "This will inactivate the product,  Are you sure?"},
+                          class: 'button green-button' %>
   <% elsif @product.available? %>
     <%= link_to 'Activate', activate_admin_merchandise_product_path(@product),
-                              :method => 'PUT',
-                              :data => {:confirm => "This will activate the product,  Are you sure?"},
-                              :class => 'button red-button' %>
+                              method: 'PUT',
+                              data: { confirm: "This will activate the product,  Are you sure?"},
+                              class:  'button red-button' %>
   <% else %>
     Not Ready for Production
   <% end %>
@@ -30,6 +32,9 @@
 
   <label>Meta Description</label>
   <p><%= @product.meta_description %></p>
+
+  <label>Short Description</label>
+  <p><%= raw @product.short_description %></p>
 
   <label>Product Type</label>
   <p><%= @product.product_type.name %></p>
@@ -79,6 +84,8 @@
           <th>Price</th>
           <th>Cost</th>
           <th>Brand</th>
+          <th>Subscription Plan</th>
+          <th>Active</th>
           <th></th>
         </tr>
       </thead>
@@ -88,7 +95,9 @@
           <td><%= variant.price %></td>
           <td><%= variant.cost %></td>
           <td><%= variant.brand.try(:name) %></td>
-          <td><%= link_to '2', admin_merchandise_product_variant_path(@product, variant) %></td>
+          <td><%= variant.subscription_plan_name %></td>
+          <td><%= variant.active?.to_s %></td>
+          <td><%= link_to variant.product_name, admin_merchandise_product_variant_path(@product, variant) %></td>
         </tr >
       <% end %>
     </table>

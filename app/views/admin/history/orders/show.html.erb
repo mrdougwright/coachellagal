@@ -1,5 +1,5 @@
 <p id="notice"><%= notice %></p>
-<div class=' ten column'>
+<div class=' ten large-10 column'>
   <b>Order Information:</b>
   <div  id='order-items'
         class='panel '>
@@ -15,7 +15,7 @@
 
 <% if @order.order_items.size > 0 %>
 
-  <div class=' six column'>
+  <div class=' six large-6 column'>
   <b>Items</b>
     <div  id='order-items'
           class=' panel '>
@@ -27,7 +27,7 @@
   </div>
 
 <% end %>
-<div class=' six column'>
+<div class=' six large-6 column'>
   <b>Shipping Address</b>
   <div  id='order-address'
         class='panel '>
@@ -38,7 +38,7 @@
   </div>
 </div>
 
-<div class=' six column '>
+<div class=' six large-6 column '>
   <b>Shipments:</b>
   <% @order.shipments.each do |shipment| %>
       <div  id='order-shipment-items'
@@ -57,22 +57,29 @@
 </div>
 
 
-<div class=' span-7 six column'>
+<div class=' six large-6 column'>
   <b>Invoices:</b>
   <% @order.invoices.each do |invoice| %>
       <div  id='order-invoices'
             class=' panel'>
           <ul class='vertical-list'>
             <li><label>Number:</label> <%= invoice.number %> </li>
-            <li><label>State: </label><%= invoice.state %></li>
-            <li><label>at:</label> <%= I18n.localize(invoice.updated_at, :format => :us_time)%></li>
+            <li><label>State: </label><%= invoice.state %> </li>
+             <li><label>at:</label> <%= I18n.localize(invoice.updated_at, :format => :us_time)%></li>
             <li><label>Amount:</label> <%= number_to_currency invoice.amount %></li>
           </ul>
+          <% if invoice.preordered? %>
+            <%= link_to 'Cancel Order',
+                        admin_fulfillment_order_path(@order, :invoice_id => invoice.id),
+                        {:method   => 'DELETE',:class    => 'button alert',
+                        :confirm  => 'Are you sure you want to cancel this Order?'}
+                         %>
+          <% end %>
       </div>
   <% end %>
 </div>
 
-<div class=' six column'>
+<div class=' six large-6 column'>
   <b>Return Merchandise Authorization:</b>
   <div class=' panel'>
     <% if @order.return_authorizations.size > 0 %>

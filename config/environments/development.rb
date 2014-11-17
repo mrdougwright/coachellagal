@@ -1,7 +1,5 @@
 Hadean::Application.configure do
-  # Rails 4
   config.eager_load = false
-
   # Settings specified here will take precedence over those in config/environment.rb
 
   # Raise exception on mass assignment protection for Active Record models
@@ -16,11 +14,15 @@ Hadean::Application.configure do
   # since you don't have to restart the webserver when you make code changes.
   config.cache_classes = false
 
+  # Log error messages when you accidentally call methods on nil.
+  # config.whiny_nils = true
+
   # Do not compress assets
-  config.assets.compress = false
+  # config.assets.compress = false
 
   # Expands the lines which load the assets
   config.assets.debug = true
+  config.serve_static_assets = false
 
   # Show full error reports and disable caching
   config.consider_all_requests_local       = true
@@ -34,9 +36,10 @@ Hadean::Application.configure do
   config.active_support.deprecation = :log
 
   # Only use best-standards-support built into browsers
-  config.action_dispatch.best_standards_support = :builtin
+  # config.action_dispatch.best_standards_support = :builtin
 
   config.cache_store = :memory_store
+  #config.cache_store = :dalli_store
 
   #config.cache_store = :dalli_store
   #config.cache_store = :redis_store
@@ -44,35 +47,10 @@ Hadean::Application.configure do
   config.action_mailer.raise_delivery_errors = false
   config.action_mailer.default_url_options = { :host => 'localhost:3000' }
 
+  config.action_mailer.asset_host = "http://localhost:3000"
 
   config.after_initialize do
     Paperclip::Attachment.default_options[:storage] = :s3
-    #Formtastic::SemanticFormBuilder.send(:include, Formtastic::DatePicker)
-    #Formtastic::SemanticFormBuilder.send(:include, Formtastic::FuturePicker)
-    #Formtastic::SemanticFormBuilder.send(:include, Formtastic::YearPicker)
-
-    ActiveMerchant::Billing::Base.mode = :test
-    #::GATEWAY = ActiveMerchant::Billing::PaypalGateway.new(
-    #  :login      => Settings.paypal.login,
-    #  :password   => Settings.paypal.password,
-    #  :signature  => Settings.paypal.signature
-    #)
-
-    ::GATEWAY = ActiveMerchant::Billing::AuthorizeNetGateway.new(
-      :login    => Settings.authnet.login,
-      :password => Settings.authnet.password,
-      :test     => true   #  Make sure this is pointing to the authnet test server.  This needs to be uncommented to test capturing a payment.
-    )
-#
-#    ::CIM_GATEWAY = ActiveMerchant::Billing::AuthorizeNetCimGateway.new(
-#      :login    => Settings.authnet.login,
-#      :password => Settings.authnet.password,
-#      :test     => true   #  Make sure this is pointing to the authnet test server.  This needs to be uncommented to test capturing a payment.
-#    )
-    #::GATEWAY = ActiveMerchant::Billing::BraintreeGateway.new(
-    #  :login     => Settings.braintree.login,
-    #  :password  => Settings.braintree.password
-    #)
   end
 
   PAPERCLIP_STORAGE_OPTS = {  :styles => {:mini => '48x48>',

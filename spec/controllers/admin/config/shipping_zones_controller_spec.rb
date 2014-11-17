@@ -1,12 +1,12 @@
 require  'spec_helper'
 
-describe Admin::Config::ShippingZonesController, type: :controller do
+describe Admin::Config::ShippingZonesController do
   render_views
 
   before(:each) do
     activate_authlogic
 
-    @user = create_super_admin_user
+    @user = create_admin_user
     login_as(@user)
   end
 
@@ -40,7 +40,7 @@ describe Admin::Config::ShippingZonesController, type: :controller do
 
   it "edit action should render edit template" do
     @shipping_zone = ShippingZone.first
-    get :edit, :id => @shipping_zone.id
+    get :edit, :id => @shipping_zone.id, :shipping_zone => {:name => 'Alaska'}
     response.should render_template(:edit)
   end
 

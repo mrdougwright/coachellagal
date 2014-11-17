@@ -14,7 +14,7 @@ class Admin::Inventory::PurchaseOrdersController < Admin::BaseController
 
   # GET /purchase_orders/new
   def new
-    @purchase_order = PurchaseOrder.new
+    @purchase_order = PurchaseOrder.new(:total_cost => 0.0)
     form_info
     if @select_suppliers.empty?
       flash[:notice] = 'You need to have a supplier before you can create a purchase order.'
@@ -59,18 +59,13 @@ class Admin::Inventory::PurchaseOrdersController < Admin::BaseController
   end
   private
 
-
   def allowed_params
-    params.require(:purchase_order).permit( :supplier_id, :invoice_number,
-                                            :tracking_number, :notes,
-                                            :receive_po, :ordered_at,
-                                            :estimated_arrival_on, :total_cost,
-                                            purchase_order_variants: [:id, :variant_id, :quantity, :cost])
+    params.require(:purchase_order).permit!
   end
 
   def form_info
-    @select_suppliers = Supplier.all.collect{|s| [s.name, s.id]}
-    @select_variants  = Variant.includes(:product).collect {|v| [v.name_with_sku, v.id]}
+    @select_suppliers = Supplier.all.map{|s| [s.name, s.id]}
+    @select_variants  = Variant.includes(:product).map {|v| [v.name_with_sku, v.id]}
   end
 
   def sort_column
@@ -78,7 +73,4 @@ class Admin::Inventory::PurchaseOrdersController < Admin::BaseController
     PurchaseOrder.column_names.include?(params[:sort]) ? params[:sort] : "id"
   end
 
-  def sort_direction
-    %w[asc desc].include?(params[:direction]) ? params[:direction] : "asc"
-  end
 end

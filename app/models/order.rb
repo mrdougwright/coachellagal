@@ -48,23 +48,24 @@
 
 class Order < ActiveRecord::Base
   extend FriendlyId
-  friendly_id :number
-  include Presentation::OrderPresenter
+  friendly_id :number, use: :finders
 
   has_many   :order_items, :dependent => :destroy
   has_many   :shipments
   has_many   :invoices
-  has_many   :completed_invoices,   -> { where(state: ['authorized', 'paid']) },  class_name: 'Invoice'
-  has_many   :authorized_invoices,  -> { where(state: 'authorized') },      class_name: 'Invoice'
-  has_many   :paid_invoices      ,  -> { where(state: 'paid') },            class_name: 'Invoice'
-  has_many   :canceled_invoices   , ->  { where(state: 'canceled') }  ,     class_name: 'Invoice'
+  has_many   :completed_invoices,   -> { where state: ['authorized', 'paid', 'preordered'] },  :class_name => 'Invoice'
+  has_many   :authorized_invoices,  -> { where state: 'authorized' }, :class_name => 'Invoice'
+  has_many   :paid_invoices      ,  -> { where state: 'paid' },       :class_name => 'Invoice'
+  has_many   :canceled_invoices,    -> { where state: 'canceled' }  , :class_name => 'Invoice'
+
   has_many   :return_authorizations
-  has_many   :comments, as: :commentable
+  has_many   :comments, :as => :commentable
 
   belongs_to :user
   belongs_to :coupon
-  belongs_to   :ship_address, class_name: 'Address'
-  belongs_to   :bill_address, class_name: 'Address'
+  belongs_to :payment_profile
+  belongs_to   :ship_address, :class_name => 'Address'
+  belongs_to   :bill_address, :class_name => 'Address'
 
   before_validation :set_email, :set_number
   after_create      :save_order_number
@@ -87,25 +88,64 @@ class Order < ActiveRecord::Base
     state 'in_progress'
     state 'complete'
     state 'paid'
+    state 'preordered'
     state 'canceled'
 
     after_transition :to => 'paid', :do => [:mark_items_paid]
+    after_transition :to => 'preordered', :do => [:mark_items_preordered]
+    after_transition :to => 'canceled', :do => [:mark_items_canceled]
 
     event :complete do
       transition :to => 'complete', :from => 'in_progress'
     end
 
-    event :pay do
-      transition :to => 'paid', :from => ['in_progress', 'complete']
+    event :cancel do
+      transition :to => 'canceled', :from => ['complete', 'preordered', 'paid']
     end
+
+    event :preorder do
+      transition :to => 'preordered', :from => ['in_progress', 'complete']
+    end
+
+    event :pay do
+      transition :to => 'paid', :from => ['in_progress', 'complete', 'preordered']
+    end
+  end
+
+  def can_collect_payment?
+    !paid? && !canceled?
   end
 
   def mark_items_paid
     order_items.map(&:pay!)
   end
 
+  def mark_items_preordered
+    order_items.map(&:preorder!)
+  end
+
+  def mark_items_canceled
+    order_items.map(&:cancel!)
+  end
+
+  # user name on the order
+  #
+  # @param [none]
+  # @return [String] user name on the order
+  def name
+    self.user.name
+  end
+
   def transaction_time
     calculated_at || Time.zone.now
+  end
+
+  # formated date of the complete_at datetime on the order
+  #
+  # @param [none]
+  # @return [String] formated date or 'Not Finished.' if the order is not completed
+  def display_completed_at(format = :us_date)
+    completed_at ? I18n.localize(completed_at, :format => format) : 'Not Finished.'
   end
 
   # how much you initially charged the customer
@@ -124,8 +164,10 @@ class Order < ActiveRecord::Base
   # @return [none]
   def cancel_unshipped_order(invoice)
     transaction do
-      self.update_attributes(:active => false)
-      invoice.cancel_authorized_payment
+      self.active = false
+      paid? ? invoice.cancel_paid_payment : invoice.cancel_authorized_payment
+      self.cancel!
+      Resque.enqueue(Jobs::SendOrderCancelledNotification, self.id)
     end
   end
 
@@ -138,16 +180,8 @@ class Order < ActiveRecord::Base
     invoices.last.state
   end
 
-  def self.between(start_time, end_time)
-    where("orders.completed_at >= ? AND orders.completed_at <= ?", start_time, end_time)
-  end
-
-  def self.order_by_completion
-    order('orders.completed_at asc')
-  end
-
   def self.finished
-    where({:orders => { :state => ['complete', 'paid']}})
+    where({:orders => { :state => ['complete', 'paid', 'preordered']}})
   end
 
   def self.find_myaccount_details
@@ -162,21 +196,12 @@ class Order < ActiveRecord::Base
           :order        => self,
           :variant_id   => item.variant.id,
           :price        => item.variant.price,
-          :tax_rate_id  => tax_rate_id)
+          :tax_rate_id  => tax_rate_id,
+          :subscription_plan_id => item.variant.subscription_plan_id)
+
       self.order_items.push(oi)
     end
   end
-
-  # captures the payment of the invoice by the payment processor
-  #
-  # @param [Invoice]
-  # @return [Payment] payment object
-  def capture_invoice(invoice)
-    payment = invoice.capture_payment({})
-    self.pay! if payment.success
-    payment
-  end
-
 
   ## This method creates the invoice and payment method.  If the payment is not authorized the whole transaction is roled back
   def create_invoice(credit_card, charge_amount, payment_method, credited_amount = 0.0)
@@ -190,15 +215,26 @@ class Order < ActiveRecord::Base
     end
   end
 
+  def create_preorder_invoice(charge_amount, payment_profile, credited_amount = 0.0)
+    transaction do
+      new_invoice = create_preorder_invoice_transaction(charge_amount, payment_profile, credited_amount)
+      if new_invoice.preordered? || new_invoice.succeeded?
+        remove_user_store_credits
+        Resque.enqueue(Jobs::SendOrderConfirmation, self.id, new_invoice.id)
+      end
+      new_invoice
+    end
+  end
+
   # call after the order is completed (authorized the payment)
   # => sets the order.state to completed, sets completed_at to time.now and updates the inventory
   #
   # @param [none]
   # @return [Payment] payment object
-  def order_complete!
+  def order_complete!(track_inventory = true)
     self.state = 'complete'
     self.completed_at = Time.zone.now
-    update_inventory
+    update_inventory if track_inventory
   end
 
   # This method will go to every order_item and calculate the total for that item.
@@ -224,6 +260,14 @@ class Order < ActiveRecord::Base
 
   def all_order_items_have_a_shipping_rate?
     !order_items.any?{ |item| item.shipping_rate_id.nil? }
+  end
+
+  def all_in_stock?
+    h = order_items.inject({}) {|hash, item| hash[item.variant_id] ||=0; hash[item.variant_id] += 1; hash }
+    h.all? do |variant_id, qty|
+      variant = Variant.includes(:inventory).find(variant_id)
+      variant.inventory.has_this_many_available?(qty)
+    end
   end
 
   # This returns a hash where product_type_id is the key and an Array of prices are the values.
@@ -264,8 +308,7 @@ class Order < ActiveRecord::Base
     includes([{:ship_address => :state},
               {:bill_address => :state},
               {:order_items =>
-                {:variant =>
-                  {:product => :images }}}])
+                {:variant => :product }}])
   end
 
   # calculates the total price of the order
@@ -327,6 +370,10 @@ class Order < ActiveRecord::Base
     (find_total - amount_to_credit).round_at( 2 )
   end
 
+
+  def integer_credited_total
+    (credited_total * 100.0).to_i
+  end
   # amount to credit based off the user store credit
   #
   # @param [none]
@@ -346,6 +393,12 @@ class Order < ActiveRecord::Base
   def shipping_charges(items = nil)
     return @order_shipping_charges if defined?(@order_shipping_charges)
     @order_shipping_charges = shipping_rates(items).inject(0.0) {|sum, shipping_rate|  sum + shipping_rate.rate  }
+  end
+
+  def display_shipping_charges
+    items = OrderItem.order_items_in_cart(self.id)
+    return 'TBD' if items.any?{|i| i.shipping_rate_id.nil? }
+    shipping_charges(items)
   end
 
   # all the shipping rate to apply to the order
@@ -406,11 +459,25 @@ class Order < ActiveRecord::Base
     self.save! if self.new_record?
     tax_rate_id = state_id ? variant.product.tax_rate(state_id) : nil
     quantity.times do
-      self.order_items.push(OrderItem.create(:order => self,:variant_id => variant.id, :price => variant.price, :tax_rate_id => tax_rate_id))
+      self.order_items.push(OrderItem.create(:order => self,:variant_id => variant.id, :price => variant.price, :tax_rate_id => tax_rate_id, :subscription_plan_id => variant.subscription_plan_id))
     end
   end
 
+  def add_subscribed_item(variant, shipping_rate_id, state_id)
+    self.save! if self.new_record?
+    tax_rate_id = state_id ? variant.product.tax_rate(state_id) : nil
+    self.order_items.push(
+      OrderItem.create( :order            => self,
+                        :variant_id       => variant.id,
+                        :price            => variant.price,
+                        :tax_rate_id      => tax_rate_id,
+                        :shipping_rate_id => shipping_rate_id)
+    )
+  end
+
   # remove the variant from the order items in the order
+  #   THIS METHOD IS COMPLEX FOR A REASON!!!
+  #   USING slice! ALLOWS THE ORDER_ITEMS TO BE DESTROYED AND UNASSOCIATED FROM THE ORDER OBJECT
   #
   # @param [Variant] variant to add
   # @param [Integer] final quantity that should be in the order
@@ -472,16 +539,22 @@ class Order < ActiveRecord::Base
     shipments_count > 0
   end
 
+  def self.completed_between(start_time, end_time)
+    where('orders.completed_at <= ?',   end_time).
+    where('orders.completed_at >= ?',   start_time)
+  end
+
   # paginated results from the admin orders that are completed grid
   #
   # @param [Optional params]
   # @return [ Array[Order] ]
   def self.find_finished_order_grid(params = {})
     grid = Order.includes([:user]).where("orders.completed_at IS NOT NULL")
+    #grid = grid.where({:active => true })                     unless  params[:show_all].present?   && params[:show_all] == 'true'
     grid = grid.where("orders.shipments_count > ?", 0)               if params[:shipped].present? && params[:shipped] == 'true'
     grid = grid.where("orders.shipments_count = ?", 0)               if params[:shipped].present? && params[:shipped] == 'false'
-    grid = grid.where("orders.number LIKE ?", "#{params[:number]}%")  if params[:number].present?
-    grid = grid.where("orders.email LIKE ?", "#{params[:email]}%")    if params[:email].present?
+    grid = grid.where("orders.number iLIKE ?", "#{params[:number]}%")  if params[:number].present?
+    grid = grid.where("orders.email iLIKE ?", "#{params[:email]}%")    if params[:email].present?
     grid = grid.order("#{params[:sidx]} #{params[:sord]}")
   end
 
@@ -492,9 +565,9 @@ class Order < ActiveRecord::Base
   def self.fulfillment_grid(params = {})
     grid = Order.includes([:user]).where({ :orders => {:shipped => false }} ).where("orders.completed_at IS NOT NULL")
     grid = grid.where({:active => true })                     unless  params[:show_all].present? && params[:show_all] == 'true'
-    grid = grid.where("orders.number LIKE ?", "#{params[:number]}%")  if params[:number].present?
+    grid = grid.where("orders.number iLIKE ?", "#{params[:number]}%")  if params[:number].present?
     grid = grid.where("orders.shipped = ?", true)                     if (params[:shipped].present? && params[:shipped] == 'true')
-    grid = grid.where("orders.email LIKE ?", "#{params[:email]}%")    if params[:email].present?
+    grid = grid.where("orders.email iLIKE ?", "#{params[:email]}%")    if params[:email].present?
     grid
   end
 
@@ -585,6 +658,22 @@ class Order < ActiveRecord::Base
     end
   end
 
+  def create_preorder_invoice_transaction(charge_amount, payment_profile, credited_amount)
+    invoice_statement = Invoice.generate_preorder(self.id, charge_amount, payment_profile, taxed_amount, credited_amount)
+    invoice_statement.save
+    invoice_statement.log_preorder_stripe_customer_payment(payment_profile.customer_token)
+    invoices.push(invoice_statement)
+    if invoice_statement.preordered?
+      self.order_complete! #complete!
+      set_stripe_token_to_subscriptions(invoice_statement)
+      self.preorder!
+    else
+      invoice_statement.errors.add(:base, 'Payment denied!!!')
+      invoice_statement.save
+    end
+    invoice_statement
+  end
+
   def create_invoice_transaction(credit_card, charge_amount, payment_method, credited_amount = 0.0)
     invoice_statement = Invoice.generate(self.id, charge_amount, payment_method, taxed_amount, credited_amount)
     invoice_statement.save
@@ -592,6 +681,7 @@ class Order < ActiveRecord::Base
     invoices.push(invoice_statement)
     if invoice_statement.succeeded?
       self.order_complete! #complete!
+      set_stripe_token_to_subscriptions(invoice_statement)
       self.pay!
     else
       #role_back
@@ -600,5 +690,20 @@ class Order < ActiveRecord::Base
 
     end
     invoice_statement
+  end
+
+  def set_stripe_token_to_subscriptions(invoice)
+    Subscription.where('order_item_id IN (?)', order_items.map(&:id)).
+                  update_all(["stripe_customer_token = ?, active = ?, next_bill_date = ?,
+                               shipping_address_id = ?, billing_address_id = ?, payment_profile_id = ?",
+                               invoice.customer_token, true, (Date.today + 1.month), ship_address_id, bill_address_id, payment_profile_id])
+    # payment_authorized!
+    order_items.each do |order_item|
+      if false && order_item.subscription # false because this only occurs if this is an installment plan which we are NOT doing.
+        batch = order_item.subscription.batches.create()
+        batch.transactions.push(SubscriptionTransaction.new_authorized_payment(order_item.subscription, order_item.subscription.total_cost_in_cents, order_item.subscription.total_tax_amount))
+        batch.save
+      end
+    end
   end
 end

@@ -2,8 +2,9 @@
 <li class="has-dropdown">
   <%= link_to 'Orders', admin_history_orders_path %>
   <ul class="dropdown">
-    <li><%= link_to 'Create Order', admin_shopping_carts_path %></li>
+    <li><%= link_to 'New Order', admin_shopping_carts_path %></li>
     <li><%= link_to 'Old Orders', admin_history_orders_path %></li>
+    <li><%= link_to 'Subscriptions', admin_fulfillment_subscriptions_path %></li>
     <li><%= link_to 'Shipments', admin_fulfillment_shipments_path %></li>
   </ul>
 </li>
@@ -16,6 +17,7 @@
     <li><%= link_to 'Prototypes', admin_merchandise_prototypes_path %></li>
     <li><%= link_to 'Image Groups', admin_merchandise_image_groups_path %></li>
     <li><%= link_to 'Brands', admin_merchandise_brands_path %></li>
+
   </ul>
 </li>
 <li class="has-dropdown">
@@ -31,8 +33,7 @@
 <li class="has-dropdown">
   <%= link_to "Users", admin_users_path %>
   <ul class="dropdown">
-    <li><%= link_to 'Users',      admin_users_path %></li>
-    <li><%= link_to 'Referrals',  admin_user_datas_referrals_path %></li>
+    <li><%= link_to "Signups", admin_signups_path %></li>
   </ul>
 </li>
 <% if current_user.super_admin? %>
@@ -44,19 +45,22 @@
       <li><%= link_to 'Shipping Zones',     admin_config_shipping_zones_path %></li>
       <li><%= link_to 'Shipping Methods',   admin_config_shipping_methods_path %></li>
       <li><%= link_to 'Shipping Rates',     admin_config_shipping_rates_path %></li>
+      <li><%= link_to 'Subscription Plans',     admin_config_subscription_plans_path %></li>
       <li><%= link_to 'Tax Rates',          admin_config_tax_rates_path %></li>
       <li><%= link_to 'Shipping Categories',  admin_config_shipping_categories_path %></li>
     </ul>
   </li>
 <% end %>
-<li class="has-dropdown">
-  <%= link_to "Coupons/Deals", admin_generic_coupons_path %>
-  <ul class="dropdown">
-    <li><%= link_to 'Coupons', admin_generic_coupons_path %></li>
-    <li><%= link_to 'Deals', admin_generic_deals_path %></li>
-    <li><%= link_to 'Sales', admin_generic_sales_path %></li>
-  </ul>
-</li>
+<% if current_user.super_admin? %>
+  <li class="has-dropdown">
+    <%= link_to "Coupons/Deals", admin_generic_coupons_path %>
+    <ul class="dropdown">
+      <li><%= link_to 'Coupons', admin_generic_coupons_path %></li>
+      <li><%= link_to 'Deals', admin_generic_deals_path %></li>
+      <li><%= link_to 'Sales', admin_generic_sales_path %></li>
+    </ul>
+  </li>
+<% end %>
 <li class="has-dropdown">
   <%= link_to "Fulfillment", admin_fulfillment_orders_path %>
   <ul class="dropdown">
@@ -66,9 +70,9 @@
   </ul>
 </li>
 <li class="has-dropdown">
-  <%= link_to "Reports", admin_reports_overview_path %>
+  <%= link_to "Reports", admin_reporting_overview_path %>
   <ul class="dropdown">
-    <li><%= link_to 'Graphs', admin_reports_graphs_path %></li>
+    <li><%= link_to 'Daily', admin_document_export_documents_path %></li>
     <li><%= link_to 'Help', admin_help_path %></li>
   </ul>
 </li>

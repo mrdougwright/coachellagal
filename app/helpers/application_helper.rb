@@ -19,7 +19,23 @@ EXAMPLE USAGE!!
     link_to title, {:sort => column, :direction => direction}, {:class => css_class}
   end
 
+  def integer_to_currency(val)
+    number_to_currency(val.to_f / 100.0)
+  end
+
+  def display_thumbs_up(yes_or_no = true)
+    if yes_or_no
+      raw('<i class="icon-ok" style="color:green;"></i>')
+    else
+      raw('<i class="icon-remove-sign" style="color:red;"></i>')
+    end
+  end
+
   def site_name
+    I18n.t(:company)
+  end
+
+  def company_name
     I18n.t(:company)
   end
 
@@ -30,7 +46,7 @@ EXAMPLE USAGE!!
   def add_child_link(name, association)
     link_to(name, "javascript:void(0);", :class => "add_child", :"data-association" => association)
   end
-  
+
   def add_child_button(name, association)
     link_to(name, "javascript:void(0);", :class => "add_child button", :"data-association" => association)
   end

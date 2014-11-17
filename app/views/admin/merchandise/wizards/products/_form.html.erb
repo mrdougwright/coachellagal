@@ -25,6 +25,13 @@
 <label>Meta Description</label>
 <%= form.text_field :meta_description %>
 
+<label>Short Description</label>
+<%= form.text_area :short_description %>
+
+
+<label>reoccurring blurb</label>
+<%= form.text_area :reoccurring_blurb %>
+
 <label>Product Type</label>
 <%= form.select :product_type_id, @select_product_types %>
 
@@ -37,7 +44,7 @@
 <fieldset>
   <legend>Properties</legend>
 
-  <div id="product_properties" class='six large-6 '>
+  <div id="product_properties" class='span-11 '>
     <% @all_properties.each do |property| %>
       <div id='property_<%= property.id %>'
             class="property_form left span-12 last"

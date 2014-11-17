@@ -5,7 +5,7 @@ class UsersNewsletter < ActiveRecord::Base
 
   def self.unsubscribe(email, key)
     if unsubscribe_key(email) == key
-      user = User.where(email: email).first
+      user = User.includes(:users_newsletters).where({users: {email: email}}).references(:users_newsletters).first
       if user
         user.users_newsletters.map(&:destroy)
       end
@@ -14,6 +14,6 @@ class UsersNewsletter < ActiveRecord::Base
 
   def self.unsubscribe_key(email)
     sha256 = Digest::SHA256.new
-    Base64.encode64(sha256.digest "UFCfit-#{email.to_s}")
+    Base64.encode64(sha256.digest "rore-#{email.to_s}")
   end
 end

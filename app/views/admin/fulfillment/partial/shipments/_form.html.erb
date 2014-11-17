@@ -1,4 +1,4 @@
-<div class='six'>
+<div class='six large-6'>
   <% @order.order_items.each do |item| %><%# .select(&:paid?).select(&:unshipped?)%>
     <% if item.paid? && item.unshipped? %>
       <div class="property_form left last">
@@ -7,7 +7,7 @@
         <%= item.variant.product_name %>
       </div>
     <% else %>
-      <%= item.variant.product_name %><br/>
+      <%= item.id %>: <%= item.variant.product_name %><br/>
     <% end %>
   <% end %>
   <div class='clearfix'> </div>

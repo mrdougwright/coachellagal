@@ -21,6 +21,7 @@ class OrderItem < ActiveRecord::Base
   belongs_to :variant
   belongs_to :tax_rate
   belongs_to :shipment
+  has_one :subscription, :dependent => :destroy
 
   has_many   :return_items
 
@@ -38,15 +39,46 @@ class OrderItem < ActiveRecord::Base
   end
 
   state_machine :initial => 'unpaid' do
+    state 'paid'
+    state 'preordered'
+    state 'returned'
+    state 'canceled'
+    state 'unpaid'
+
+    after_transition :to => 'canceled', :do => [:mark_subscription_canceled]
 
     event :pay do
-      transition :to => 'paid', :from => ['unpaid']
+      transition :to => 'paid', :from => ['unpaid', 'preordered']
+    end
+
+    event :preorder do
+      transition :to => 'preordered', :from => ['unpaid']
+    end
+
+    event :cancel do
+      transition :to => 'canceled', :from => ['unpaid', 'preordered', 'paid']
     end
 
     event :return do
       transition :to => 'returned', :from => ['paid']
     end
     #after_transition :to => 'complete', :do => [:update_inventory]
+  end
+
+  def mark_subscription_canceled
+    subscription.try(:cancel!)
+  end
+
+  def self.preorders
+    where(:state => :preordered)
+  end
+
+  def self.purchased
+    where(:order_items => {:state => ['paid', 'preordered']})
+  end
+
+  def order_number
+    order.number
   end
 
   def product_type
@@ -93,7 +125,19 @@ class OrderItem < ActiveRecord::Base
   def shipping_rate_options(total_charge)
     ShippingRate.joins(:shipping_method).where(['shipping_rates.shipping_category_id = ?
                         AND shipping_methods.shipping_zone_id = ?
-                        AND shipping_rates.minimum_charge <= ?', ship_category_id, order.ship_address.shipping_zone_id, total_charge])
+                        AND shipping_rates.minimum_charge <= ?', ship_category_id, order.ship_address.state.shipping_zone_id, total_charge])
+  end
+
+  def subscription_plan_id=(val)
+    if subscription_plan = SubscriptionPlan.find_by_id(val)
+      self.build_subscription( #:product_id           => self.variant.product_id,
+                              :stripe_customer_token => nil,
+                              :subscription_plan_id => subscription_plan.id,
+                              :total_payments       => subscription_plan.total_payments,
+                              :remaining_payments   => subscription_plan.total_payments,
+                              :user_id              => self.order.user_id,
+                              :active               => false)
+    end
   end
 
   # called in checkout process. will give you the 'quantity', 'sum of all the prices' and 'sum of all the totals'
@@ -159,9 +203,9 @@ class OrderItem < ActiveRecord::Base
 
   def adjusted_price(coupon = nil)
     ## coupon credit is calculated at the order level but because taxes we need to apply it now
-    coupon_credit = coupon ? coupon.value([sale_price(order.transaction_time)], order) : 0.0
+    #coupon_credit = coupon ? coupon.value([sale_price(order.transaction_time)], order) : 0.0
 
-    self.price - coupon_credit
+    self.price# - coupon_credit
   end
 
   def sale_price(at)
@@ -173,7 +217,7 @@ class OrderItem < ActiveRecord::Base
     Sale.for(variant.product_id, at)
   end
 
-  # this is the price after coupons and taxes
+  # this is the price after taxes
   #   * this return total if has not been calculated, otherwise calculates the total.
   #
   # @param [none]
@@ -201,8 +245,11 @@ class OrderItem < ActiveRecord::Base
   # @param [none]
   # @return [Float] tax charge on the item.
   def tax_charge
-    tax_percentage = tax_rate.try(:tax_percentage) ? tax_rate.tax_percentage : 0.0
     adjusted_price * tax_percentage / 100.0
+  end
+
+  def tax_percentage
+    tax_rate.try(:tax_percentage) ? tax_rate.tax_percentage : 0.0
   end
 
   # the VAT charge on an item

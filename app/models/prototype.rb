@@ -4,7 +4,7 @@ class Prototype < ActiveRecord::Base
   has_many :prototype_properties
   has_many :properties,          :through => :prototype_properties
 
-  validates :name,    :presence => true, :length => { :maximum => 255 }
+  validates :name,    presence: true, length: { maximum: 255 }
 
   accepts_nested_attributes_for :properties, :prototype_properties
 
@@ -22,4 +22,11 @@ class Prototype < ActiveRecord::Base
 
   end
 
+  # 'True' if active 'False' otherwise in plain english
+  #
+  # @param [none]
+  # @return [String] 'True' or 'False'
+  def display_active
+    active? ? 'True' : 'False'
+  end
 end

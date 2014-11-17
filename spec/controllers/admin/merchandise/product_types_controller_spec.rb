@@ -24,7 +24,7 @@ describe Admin::Merchandise::ProductTypesController do
 
   it "create action should render new template when model is invalid" do
     ProductType.any_instance.stubs(:valid?).returns(false)
-    post :create, :product_type => {:name => 'dis', :parent_id => 1}
+    post :create, :product_type => {:name => 'dis', :parent_id => nil}
     response.should render_template(:new)
   end
 
@@ -49,7 +49,7 @@ describe Admin::Merchandise::ProductTypesController do
   end
 
   it "update action should redirect when model is valid" do
-    @product_type = create(:product_type)
+    @product_type = FactoryGirl.create(:product_type, parent_id: nil)
     ProductType.any_instance.stubs(:valid?).returns(true)
     put :update, :id => @product_type.id, :product_type => {:name => 'dis', :parent_id => nil}
     response.should redirect_to(admin_merchandise_product_types_url)
@@ -59,6 +59,6 @@ describe Admin::Merchandise::ProductTypesController do
     @product_type = create(:product_type)
     delete :destroy, :id => @product_type.id
     response.should redirect_to(admin_merchandise_product_types_url)
-    expect(ProductType.find(@product_type.id).active).to eq false
+    ProductType.find(@product_type.id).active.should be_false
   end
 end

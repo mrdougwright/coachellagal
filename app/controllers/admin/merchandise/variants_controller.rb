@@ -1,5 +1,5 @@
 class Admin::Merchandise::VariantsController < Admin::BaseController
-  helper_method :sort_column, :sort_direction
+  helper_method :sort_column, :sort_direction, :taxability_informations, :subscription_plans
   respond_to :html, :json
   def index
     @product = Product.find(params[:product_id])
@@ -60,12 +60,16 @@ class Admin::Merchandise::VariantsController < Admin::BaseController
 
   private
 
-  def allowed_params
-    params.require(:variant).permit(:sku, :name, :price, :cost, :deleted_at, :master, :inventory_id )
-  end
+    def allowed_params
+      params.require(:variant).permit(:sku, :name, :price, :cost, :deleted_at, :master, :inventory_id )
+    end
 
     def form_info
-
+      @brands = Brand.all.collect{|b| [b.name, b.id] }
+      #@prototypes = Prototype.all.collect{|pt| [pt.name, pt.id]}
+      #@all_properties = Property.all
+      #@select_variant_types = VariantType.all.collect{|pt| [pt.name, pt.id]}
+      #@select_shipping_category = ShippingCategory.all.collect {|sc| [sc.name, sc.id]}
     end
 
     def sort_column
@@ -74,6 +78,14 @@ class Admin::Merchandise::VariantsController < Admin::BaseController
 
     def sort_direction
       %w[asc desc].include?(params[:direction]) ? params[:direction] : "asc"
+    end
+
+    def subscription_plans
+      @subscription_plans ||= SubscriptionPlan.all.collect{|b| [b.name, b.id] }
+    end
+
+    def taxability_informations
+      @taxability_informations ||= TaxabilityInformation.all.collect{|b| ["#{b.name}(#{b.code})", b.id] }
     end
 
 end

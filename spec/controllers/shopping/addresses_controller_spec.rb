@@ -5,12 +5,14 @@ describe Shopping::AddressesController do
 
   before(:each) do
     activate_authlogic
+
     @cur_user = create(:user)
     login_as(@cur_user)
 
     @variant  = create(:variant)
     create_cart(@cur_user, @cur_user, [@variant])
     @shipping_address = create(:address, :addressable_id => @cur_user.id, :addressable_type => 'User')
+    stub_redirect_to_welcome
   end
 
   it "index action should render index template" do

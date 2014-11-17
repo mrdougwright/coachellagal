@@ -1,6 +1,6 @@
 module StringExtensions
   def possessive
-    self + case self[-1,1]#1.8.7 style
+    self + case self[-1,1]
     when 's' then "'"
     else "'s"
     end

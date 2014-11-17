@@ -13,13 +13,13 @@
 #  period                 :string(255)
 #  created_at             :datetime
 #  updated_at             :datetime
-#  tax_state_id           :integer
 #
 
 class TransactionLedger < ActiveRecord::Base
   belongs_to :transaction_account
-  belongs_to :transactionn, class_name: 'Transaction', foreign_key: :transaction_id
+  belongs_to :owner, foreign_key: "transaction_ledger_id", class_name: "Transaction"
   belongs_to :accountable, :polymorphic => true
+  belongs_to :tax_state, :class_name => 'State'
 
 
   validates :accountable_type,        :presence => true
@@ -50,6 +50,12 @@ class TransactionLedger < ActiveRecord::Base
   def transaction_account_name
     Rails.cache.fetch("transaction_account_name-#{transaction_account_id}", :expires_in => 12.hours) do
       transaction_account.name
+    end
+  end
+
+  def tax_state_name
+    Rails.cache.fetch("tax_state_name-#{tax_state_id}", :expires_in => 12.hours) do
+      tax_state.try(:name)
     end
   end
 

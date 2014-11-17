@@ -31,7 +31,7 @@ shipping_categories:
       name: Clothing
   2:
     attributes:
-      name: Furniture
+      name: Furnature
 
 shipping_rates:
   1: #'FREE, shipping_rate_type => Order, shipping_category => Clothing'
@@ -97,7 +97,7 @@ shipping_rates:
       minimum_charge: 0.00
       position: 2
       active: true
-  8: #'FREE, shipping_rate_type => Individual, shipping_category => Furniture'
+  8: #'FREE, shipping_rate_type => Individual, shipping_category => Furnature'
     attributes:
       shipping_method_id: 1
       rate: 0.00
@@ -106,7 +106,7 @@ shipping_rates:
       minimum_charge: 25.00
       position: 1
       active: true
-  9: #'STANDARD, shipping_rate_type => Individual, shipping_category => Furniture'
+  9: #'STANDARD, shipping_rate_type => Individual, shipping_category => Furnature'
     attributes:
       shipping_method_id: 1
       rate: 7.00
@@ -115,7 +115,7 @@ shipping_rates:
       minimum_charge: 0.00
       position: 2
       active: true
-  10: #'EXPEDITE, shipping_rate_type => Individual, shipping_category => Furniture'
+  10: #'EXPEDITE, shipping_rate_type => Individual, shipping_category => Furnature'
     attributes:
       shipping_method_id: 2
       rate: 15.00
@@ -124,7 +124,7 @@ shipping_rates:
       minimum_charge: 0.00
       position: 3
       active: true
-  11: #'STANDARD ALASKA, shipping_rate_type => Individual, shipping_category => Furniture'
+  11: #'STANDARD ALASKA, shipping_rate_type => Individual, shipping_category => Furnature'
     attributes:
       shipping_method_id: 3
       rate: 10.00
@@ -133,7 +133,7 @@ shipping_rates:
       minimum_charge: 0.00
       position: 1
       active: true
-  12: #'STANDARD CANADA, shipping_rate_type => Individual, shipping_category => Furniture'
+  12: #'STANDARD CANADA, shipping_rate_type => Individual, shipping_category => Furnature'
     attributes:
       shipping_method_id: 4
       rate: 15.00
@@ -142,7 +142,7 @@ shipping_rates:
       minimum_charge: 0.00
       position: 1
       active: true
-  13: #'GROUND CANADA, shipping_rate_type => Individual, shipping_category => Furniture'
+  13: #'GROUND CANADA, shipping_rate_type => Individual, shipping_category => Furnature'
     attributes:
       shipping_method_id: 5
       rate: 10.00
@@ -151,7 +151,7 @@ shipping_rates:
       minimum_charge: 0.00
       position: 2
       active: true
-  14: #'GROUND US TERRITORY, shipping_rate_type => Individual, shipping_category => Furniture'
+  14: #'GROUND US TERRITORY, shipping_rate_type => Individual, shipping_category => Furnature'
     attributes:
       shipping_method_id: 6
       rate: 12.00
@@ -396,6 +396,7 @@ variants:
       name:
       price: 30.00
       cost: 10.00
+      brand_id: 1
       inventory_id: 1
   2: #'Polo Shirt 2'
     attributes:
@@ -404,6 +405,7 @@ variants:
       name:
       price: 30.00
       cost: 10.00
+      brand_id: 1
       inventory_id: 2
   3: #'Polo Shirt 3'
     attributes:
@@ -412,6 +414,7 @@ variants:
       name:
       price: 30.00
       cost: 10.00
+      brand_id: 1
       inventory_id: 3
   4: #'Cute Pants 1'
     attributes:
@@ -420,6 +423,7 @@ variants:
       name:
       price: 30.00
       cost: 10.00
+      brand_id: 1
       inventory_id: 4
   5: #'Cute Pants 2'
     attributes:
@@ -428,6 +432,7 @@ variants:
       name:
       price: 30.00
       cost: 10.00
+      brand_id: 1
       inventory_id: 5
 variant_properties:
   1: #'Polo Shirt 1'

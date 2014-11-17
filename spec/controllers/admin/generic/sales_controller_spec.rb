@@ -64,6 +64,6 @@ describe Admin::Generic::SalesController do
     sale = FactoryGirl.create(:sale)
     delete :destroy, :id => sale.id
     response.should redirect_to(admin_generic_sales_url)
-    expect(Sale.exists?(sale.id)).to eq false
+    Sale.exists?(sale.id).should be_false
   end
 end

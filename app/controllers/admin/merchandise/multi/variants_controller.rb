@@ -1,9 +1,8 @@
 class Admin::Merchandise::Multi::VariantsController < Admin::BaseController
-  helper_method :image_groups
+  helper_method :subscription_plans, :image_groups, :taxability_informations
   def edit
     @product        = Product.includes(:properties,:product_properties, {:prototype => :properties}).find(params[:product_id])
     form_info
-    render :layout => 'admin_markup'
   end
 
   def update
@@ -19,16 +18,24 @@ class Admin::Merchandise::Multi::VariantsController < Admin::BaseController
   end
   private
 
-
   def allowed_params
     params.require(:product).permit!
     #permit({:variants_attributes => [:id, :product_id, :sku, :name, :price, :cost, :deleted_at, :master, :brand_id, :inventory_id]} )
+  end
+
+  def form_info
+    @brands = Brand.all.collect{|b| [b.name, b.id] }
   end
 
   def image_groups
     @image_groups ||= ImageGroup.where(:product_id => @product).map{|i| [i.name, i.id]}
   end
 
-  def form_info
+  def subscription_plans
+    @subscription_plans ||= SubscriptionPlan.all.map{|b| [b.name, b.id] }
+  end
+
+  def taxability_informations
+    @taxability_informations ||= TaxabilityInformation.all.map{|b| ["#{b.name}(#{b.code})", b.id] }
   end
 end

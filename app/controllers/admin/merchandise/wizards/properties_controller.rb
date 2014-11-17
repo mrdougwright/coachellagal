@@ -25,7 +25,6 @@ class Admin::Merchandise::Wizards::PropertiesController < Admin::Merchandise::Wi
 
   private
 
-
   def allowed_params
     params.require(:property).permit(:identifing_name, :display_name, :active)
   end

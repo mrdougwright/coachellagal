@@ -82,11 +82,7 @@ class Admin::Merchandise::ProductsController < Admin::BaseController
     if @product.save
       redirect_to admin_merchandise_product_url(@product)
     else
-      if @product.description.blank?
-        flash[:alert] = "Please add a description before Activating."
-      else
-        flash[:alert] = @product.errors.full_messages.join('  ')
-      end
+      flash[:alert] = "Please add a description before Activating."
       redirect_to edit_admin_merchandise_products_description_url(@product)
     end
   end
@@ -102,8 +98,9 @@ class Admin::Merchandise::ProductsController < Admin::BaseController
   private
 
     def allowed_params
-      params.require(:product).permit(:name, :description, :product_keywords, :set_keywords, :product_type_id,
-                                      :prototype_id, :shipping_category_id, :permalink, :available_at, :deleted_at,
+      params.require(:product).permit(:name, :description, :short_description, :reoccurring_blurb,
+                                      :product_keywords, :set_keywords, :product_type_id, :prototype_id,
+                                      :shipping_category_id, :permalink, :available_at, :deleted_at,
                                       :meta_keywords, :meta_description, :featured, :description_markup, :brand_id,
                                       product_properties_attributes: [:id, :product_id, :property_id, :position, :description])
     end
@@ -112,7 +109,7 @@ class Admin::Merchandise::ProductsController < Admin::BaseController
       @prototypes               = Prototype.all.collect{|pt| [pt.name, pt.id]}
       @all_properties           = Property.all
       @select_shipping_category = ShippingCategory.all.collect {|sc| [sc.name, sc.id]}
-      @brands        = Brand.order(:name).collect {|ts| [ts.name, ts.id]}
+      @brands                   = Brand.order(:name).map {|ts| [ts.name, ts.id]}
     end
 
     def product_types

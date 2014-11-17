@@ -1,5 +1,7 @@
 class Shopping::OrdersController < Shopping::BaseController
   before_filter :require_login
+
+  layout 'checkout'
   # GET /shopping/orders
   ### The intent of this action is two fold
   #
@@ -10,11 +12,19 @@ class Shopping::OrdersController < Shopping::BaseController
   ##### THIS METHOD IS BASICALLY A CHECKOUT ENGINE
   def index
     @order = find_or_create_order
+    @tab = 'order-details'
     if f = next_form(@order)
       redirect_to f
     else
-      expire_all_browser_cache
       form_info
+    end
+  end
+  # method stripe calls to get the order total right before getting the token
+  def show
+    @order = find_or_create_order
+    @order.credited_total
+    respond_to do |format|
+      format.json  { render :json => @order.to_json(:only => [:number, :integer_credited_total], :methods => [:integer_credited_total]) }
     end
   end
 
@@ -29,26 +39,53 @@ class Shopping::OrdersController < Shopping::BaseController
 
   # POST /shopping/orders
   def update
-    # think STRIPE stuff from charges_controller needs to go here....
+    @tab = 'order-details'
     @order = find_or_create_order
     @order.ip_address = request.remote_ip
 
-    @credit_card ||= ActiveMerchant::Billing::CreditCard.new(cc_params)
+    if !@order.in_progress?
+      session_cart.mark_items_purchased(@order)
+      flash[:error] = I18n.t('the_order_purchased')
+      redirect_to myaccount_order_url(@order)
+    elsif @order.payment_profile
+      if response = @order.create_invoice(@credit_card,
+                                          @order.credited_total,
+                                          @order.payment_profile,
+                                          @order.amount_to_credit)
+        if response.succeeded?
+          ##  MARK items as purchased
+          session_cart.mark_items_purchased(@order)
+          flash[:last_order] = @order.id
+          redirect_to( confirmation_shopping_order_url(@order) ) and return
+        else
+          flash[:alert] =  [I18n.t('could_not_process'), I18n.t('the_order')].join(' ')
+        end
+      else
+        flash[:alert] = [I18n.t('could_not_process'), I18n.t('the_credit_card')].join(' ')
+      end
+      form_info
+      render :action => 'index'
+    else
+      form_info
+      flash[:alert] = [I18n.t('form not filled out correctly')].join(' ')
+      render :action => 'index'
+    end
+  end
 
-    address = @order.bill_address.cc_params
+  def preorder
+    @order = find_or_create_order
+    @order.ip_address = request.remote_ip
 
     if !@order.in_progress?
       session_cart.mark_items_purchased(@order)
-      session[:order_id] = nil
       flash[:error] = I18n.t('the_order_purchased')
       redirect_to myaccount_order_url(@order)
-    elsif @credit_card.valid?
-      if response = @order.create_invoice(@credit_card,
+    elsif @order.payment_profile
+      if response = @order.create_preorder_invoice(
                                           @order.credited_total,
-                                          { email: @order.email, billing_address: address, ip: @order.ip_address },
+                                          @order.payment_profile,
                                           @order.amount_to_credit)
-        if response.succeeded?
-          expire_all_browser_cache
+        if response.preordered?
           ##  MARK items as purchased
           session_cart.mark_items_purchased(@order)
           session[:last_order] = @order.number
@@ -63,7 +100,7 @@ class Shopping::OrdersController < Shopping::BaseController
       render :action => 'index'
     else
       form_info
-      flash[:alert] = [I18n.t('credit_card'), I18n.t('is_not_valid')].join(' ')
+      flash[:alert] = [I18n.t('form not filled out correctly')].join(' ')
       render :action => 'index'
     end
   end
@@ -72,7 +109,7 @@ class Shopping::OrdersController < Shopping::BaseController
     @tab = 'confirmation'
     if session[:last_order].present? && session[:last_order] == params[:id]
       session[:last_order] = nil
-      @order = Order.where(number: params[:id]).includes({order_items: :variant}).first
+      @order = Order.where(:number => params[:id]).includes({:order_items => :variant}).first
       render :layout => 'application'
     else
       session[:last_order] = nil
@@ -83,17 +120,21 @@ class Shopping::OrdersController < Shopping::BaseController
       end
     end
   end
+
   private
 
   def customer_confirmation_page_view
     @tab && (@tab == 'confirmation')
   end
 
-  def form_info
-    @credit_card ||= ActiveMerchant::Billing::CreditCard.new()
-    @order.credited_total
+  def selected_checkout_tab(tab)
+    @tab = 'order-details' if @tab.nil?
+    tab == @tab
   end
 
+  def form_info
+    @order.credited_total
+  end
   def require_login
     if !current_user
       session[:return_to] = shopping_orders_url

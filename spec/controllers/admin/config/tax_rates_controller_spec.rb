@@ -1,12 +1,12 @@
 require  'spec_helper'
 
-describe Admin::Config::TaxRatesController, type: :controller do
+describe Admin::Config::TaxRatesController do
   render_views
 
   before(:each) do
     activate_authlogic
 
-    @user = create_super_admin_user
+    @user = create_admin_user
     login_as(@user)
   end
 
@@ -62,6 +62,6 @@ describe Admin::Config::TaxRatesController, type: :controller do
     @tax_rate = create(:tax_rate)
     delete :destroy, :id => @tax_rate.id
     response.should redirect_to(admin_config_tax_rates_url)
-    expect(TaxRate.find(@tax_rate.id).active).to eq false
+    TaxRate.find(@tax_rate.id).active.should be_false
   end
 end

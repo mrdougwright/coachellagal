@@ -6,9 +6,9 @@ describe Myaccount::AddressesController do
 
   before(:each) do
     activate_authlogic
-
     @user = create(:user)
     login_as(@user)
+    stub_redirect_to_welcome
   end
 
 
@@ -68,8 +68,8 @@ describe Myaccount::AddressesController do
     @address = create(:address, :addressable => @user)
     delete :destroy, :id => @address.id
     response.should redirect_to(myaccount_addresses_url)
-    expect(Address.exists?(@address.id)).to be true
+    Address.exists?(@address.id).should be_true
     a = Address.find(@address.id)
-    expect(a.active).to eq false
+    a.active.should be_false
   end
 end

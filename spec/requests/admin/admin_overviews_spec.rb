@@ -13,7 +13,7 @@ def cookied_admin_login
 end
 def cookied_login
    User.acts_as_authentic_config[:maintain_sessions] = false
-   create(:user, :first_name => 'Doug', :email => 'test@nonadmin.com', :password => 'secret1', :password_confirmation => 'secret1')
+   create(:user, :first_name => 'Dave', :email => 'test@nonadmin.com', :password => 'secret1', :password_confirmation => 'secret1')
    User.any_instance.stubs(:admin?).returns(false)
    visit login_path
    within("#login") do
@@ -23,34 +23,4 @@ def cookied_login
    end
 end
 
-describe "Admin::Overviews" do
-  describe "GET /admin_overviews" do
-    it "works!" do
-      User.any_instance.stubs(:activate!).returns(true)
-      visit admin_overviews_path
-      page.should have_content('admin_user_')
-      page.should have_content('notarealemail')
-      User.first.should_not be_nil
-    end
-  end
-end
-describe "Admin::Overviews" do
-  describe "GET /admin_overviews" do
-    it "If a user has already been created this page will show without password info for admin users" do
-      cookied_admin_login
 
-      visit admin_overviews_path
-      page.should have_content('Best to go through the list below in separate tabs')
-    end
-  end
-end
-describe "Admin::Overviews" do
-
-  describe "GET /admin_overviews" do
-    it "If a user has already been created this page will redirect to root_url for non-admins" do
-      cookied_login
-      visit admin_overviews_path
-      page.should_not have_content('Best to go through the list below in separate tabs')
-    end
-  end
-end

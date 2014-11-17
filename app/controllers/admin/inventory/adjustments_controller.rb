@@ -37,6 +37,5 @@ class Admin::Inventory::AdjustmentsController < Admin::BaseController
   def allowed_params
     params.require(:variant).permit(:qty_to_add)
   end
-
 end
 

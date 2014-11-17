@@ -1,5 +1,5 @@
 class ProductsController < ApplicationController
-
+  before_filter :redirect_if_not_accepting_orders
   def index
     products = Product.active.includes(:variants)
 
@@ -16,7 +16,7 @@ class ProductsController < ApplicationController
 
   def create
     if params[:q] && params[:q].present?
-      @products = Product.standard_search(params[:q]).results
+      @products = Product.standard_search(params[:q]).paginate(:page => pagination_page, :per_page => 15).results
     else
       @products = Product.where('deleted_at IS NULL OR deleted_at > ?', Time.zone.now )
     end
@@ -31,6 +31,10 @@ class ProductsController < ApplicationController
   end
 
   private
+
+  def redirect_if_not_accepting_orders
+    redirect_to preorders_url and return if !Settings.allow_orders
+  end
 
   def form_info
     @cart_item = CartItem.new

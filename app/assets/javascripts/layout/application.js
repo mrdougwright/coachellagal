@@ -16,6 +16,11 @@ if (document.getElementsByTagName) {
 
 // This allows forms to have unobtrusive JS nested forms.
 $(function() {
+  if( $.browser.msie && parseInt($.browser.version, 10) <=8 ){
+    $('.browser').show()
+    $( "#myIEUpgradeModal" ).dialog();
+  }
+
   $('form a.add_child').click(function() {
     var assoc   = $(this).attr('data-association');
     var content = $('#' + assoc + '_fields_template').html();
@@ -26,7 +31,8 @@ $(function() {
     return false;
   });
 
-  $('form').on('click', 'a.remove_child', function() {
+  $('form').on('click', ' a.remove_child', function() {
+
     var hidden_field = $(this).prev('input[type=hidden]')[0];
     if(hidden_field) {
       hidden_field.value = '1';

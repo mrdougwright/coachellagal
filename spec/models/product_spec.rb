@@ -6,7 +6,7 @@ describe Product, ".instance methods with images" do
   end
 
   context "featured_image" do
-    skip "test for featured_image"
+    pending "test for featured_image"
     #it 'should return an image url' do
       # @your_model.should_receive(:save_attached_files).and_return(true)
       # Image.new :photo => File.new(Rails.root + 'spec/fixtures/images/rails.png')
@@ -29,15 +29,8 @@ end
 #end
 
 describe Product, ".tax_rate" do
-
-  before(:each) do
-    tr = TaxRate.new()
-    tr.send(:expire_cache)
-  end
-
   # use case tax rate end date is nil and the start_date < now
   it 'should return the tax rate' do
-    Settings.tax_per_state_id = true
     tax_rate    = create(:tax_rate,
                           :state_id => 1,
                           :start_date => (Time.zone.now - 1.year),
@@ -80,7 +73,6 @@ describe Product, ".tax_rate" do
   end
   # the tax rate changes next month but is 5% now and next month will be 10%
   it 'should return any tax rates of 5%' do
-    Settings.tax_per_state_id = true
     tax_rate    = create(:tax_rate,
                           :percentage => 5.0,
                           :state_id   => 1,
@@ -111,6 +103,7 @@ describe Product, ".tax_rate" do
 end
 
 describe Product, ".instance methods" do
+
   context 'with three variants' do
     before(:each) do
       product  = create(:product)
@@ -157,7 +150,7 @@ describe Product, ".instance methods" do
 
     context ".price_range?" do
       it 'should return the price range' do
-        expect(@product.price_range?).to be true
+        @product.price_range?.should be_true
       end
     end
   end
@@ -173,7 +166,7 @@ describe Product, ".instance methods" do
           inventory   = create(:inventory, count_on_hand: 100, count_pending_to_customer: 100)
           @variant    = create(:variant, product: @product, inventory: inventory)
           FactoryGirl.create(:shipping_rate, shipping_category: @product.shipping_category)
-          expect(@product.available?).to be false
+          expect(@product.available?).to be_false
         end
       end
 
@@ -181,7 +174,7 @@ describe Product, ".instance methods" do
         it 'should be false' do
           inventory   = create(:inventory, count_on_hand: 100, count_pending_to_customer: 90)
           @variant    = create(:variant, product: @product, inventory: inventory)
-          expect(@product.available?).to be false
+          expect(@product.available?).to be_false
         end
       end
 
@@ -190,21 +183,21 @@ describe Product, ".instance methods" do
           inventory   = create(:inventory, count_on_hand: 100, count_pending_to_customer: 90)
           @variant    = create(:variant, product: @product, inventory: inventory)
           FactoryGirl.create(:shipping_rate, shipping_category: @product.shipping_category)
-          expect(@product.available?).to be true
+          expect(@product.available?).to be_true
         end
       end
     end
 
     context '.has_shipping_method?' do
       it 'should be false without a shipping rate' do
-        expect(@product.has_shipping_method?).to be false
+        expect(@product.has_shipping_method?).to be_false
       end
 
       it 'should be true with a shipping rate' do
         inventory   = create(:inventory, count_on_hand: 100, count_pending_to_customer: 90)
         @variant    = create(:variant, product: @product, inventory: inventory)
         FactoryGirl.create(:shipping_rate, shipping_category: @product.shipping_category)
-        expect(@product.has_shipping_method?).to be true
+        expect(@product.has_shipping_method?).to be_true
       end
     end
   end
@@ -215,49 +208,26 @@ describe Product, "class methods" do
 
   context "#standard_search(args)" do
     it "should search products" do
-      product1  = create(:product, meta_keywords: 'no blah', name: 'blah')
-      product2  = create(:product, meta_keywords: 'tester blah')
-      Product.any_instance.stubs(:ensure_available).returns(true)
+      product1  = create(:product, :meta_keywords => 'no blah', :name => 'blah')
+      product2  = create(:product, :meta_keywords => 'tester blah')
       product1.activate!
       product2.activate!
       args = 'tester'
       products = Product.standard_search(args)
-      expect(products.include?(product1)).to be false
-      expect(products.include?(product2)).to be true
+      products.include?(product1).should be_false
+      products.include?(product2).should be_true
     end
   end
 
-  context '.activate!' do
-    it "should activate the product " do
-      product = create(:product)
-      variant = create(:variant, product: product)
-      variant.add_count_on_hand(1)
-      product.activate!
-      product.reload
-      expect(product.active?).to be true
+  context "#preorders" do
+    it "should find preorders" do
+      product_type = create(:product_type )
+      product_typem = create(:product_type, :name => 'Media')
+      product   = create(:product, :product_type => product_type)
+      product_m = create(:product, :product_type => product_typem)
+      product_m.activate!
+      Product.preorders.to_a.should eq [product_m]
     end
-
-    it "should not activate a product without variants" do
-      product = create(:product)
-      product.activate!
-      product.reload
-      expect(product.active?).to be false
-    end
-
-    it "should not activate a product without inventory" do
-      product = create(:product)
-      variant = create(:variant, product: product)
-      variant.inventory.count_on_hand = 0
-      variant.inventory.count_pending_to_customer = 0
-      variant.inventory.save!
-      product.activate!
-      product.reload
-      expect(product.active?).to be false
-    end
-  end
-
-  context "#featured" do
-    skip "test for featured"
   end
 
   context "#admin_grid(params = {}, active_state = nil)" do
@@ -265,25 +235,33 @@ describe Product, "class methods" do
     it "should return Products " do
       product1 = create(:product)
       product2 = create(:product)
-      Product.any_instance.stubs(:ensure_available).returns(true)
       product1.activate!
       product2.activate!
       admin_grid = Product.admin_grid({}, true)
       admin_grid.size.should == 2
-      expect(admin_grid.include?(product1)).to be true
-      expect(admin_grid.include?(product2)).to be true
+      admin_grid.include?(product1).should be_true
+      admin_grid.include?(product2).should be_true
+    end
+    it "should return deleted Products " do
+      product1 = create(:product)
+      product2 = create(:product)
+      product1.deleted_at = Time.zone.now - 1.second
+      product1.save
+      product2.deleted_at = Time.zone.now + 20.seconds
+      product2.save
+      admin_grid = Product.admin_grid({}, false)
+      admin_grid.size.should == 1
+      admin_grid.include?(product1).should be_true
+      admin_grid.include?(product2).should be_false
     end
 
     it "should return deleted Products " do
       product1 = create(:product)
       product2 = create(:product)
-      admin_grid = []
-      while admin_grid.empty? # no idea why I had to do this...rspec too fast?
-        admin_grid = Product.admin_grid({}, false)
-      end
+      admin_grid = Product.admin_grid({}, nil)
       admin_grid.size.should == 2
-      expect(admin_grid.include?(product1)).to be true
-      expect(admin_grid.include?(product2)).to be true
+      admin_grid.include?(product1).should be_true
+      admin_grid.include?(product2).should be_true
     end
   end
 end

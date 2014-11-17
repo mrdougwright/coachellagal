@@ -1,24 +1,19 @@
 
 
 describe Notifier, "Signup Email" do
-    #include EmailSpec::Helpers
-    #include EmailSpec::Matchers
-    #include ActionController::UrlWriter
     include Rails.application.routes.url_helpers
 
     before(:each) do
-      #"jojo@yahoo.com", "Jojo Binks"
-      #[first_name.capitalize, last_name.capitalize ]
-      @user  = create(:user, :email => 'myfake@email.com', :first_name => 'Dave', :last_name => 'Commerce')
+      @user  = create(:user, :email => 'myfake@email.com', :first_name => nil, :last_name => nil)
       @email = Notifier.signup_notification(@user.id)
     end
 
     it "should be set to be delivered to the email passed in" do
-      @email.should deliver_to("Dave Commerce <myfake@email.com>")
+      @email.should deliver_to('"myfake@email.com" <myfake@email.com>')
     end
 
     it "should contain the user's message in the mail body" do
-      @email.should have_body_text(/Dave Commerce/)
+      @email.should have_body_text(/wish to unsubscribe/)
     end
 
     #it "should contain a link to the confirmation link" do
@@ -26,55 +21,17 @@ describe Notifier, "Signup Email" do
     #end
 
     it "should have the correct subject" do
-      @email.should have_subject(/New account information/)
+      @email.should have_subject(/Thank you for Subscribing/)
     end
 
-end
-
-describe Notifier, "#new_referral_credits" do
-  include Rails.application.routes.url_helpers
-
-  before(:each) do
-    @referring_user = create(:user,     :email => 'referring_user@email.com', :first_name => 'Dave', :last_name => 'Commerce')
-    @referral       = create(:referral, :email => 'referral_user@email.com', :referring_user => @referring_user )
-    @referral_user  = create(:user,     :email => 'referral_user@email.com', :first_name => 'Dave', :last_name => 'referral')
-
-    #@referral_user.stubs(:referree).returns(@referral)
-    @email = Notifier.new_referral_credits(@referring_user.id, @referral_user.id)
-  end
-  it "should be set to be delivered to the email passed in" do
-    @email.should deliver_to("referring_user@email.com")
-  end
-
-  it "should have the correct subject" do
-    @email.should have_subject(/Referral Credits have been Applied/)
-  end
-end
-
-
-describe Notifier, "#referral_invite(referral_id, inviter_id)" do
-  include Rails.application.routes.url_helpers
-
-  before(:each) do
-    @referring_user = create(:user,     :email => 'referring_user@email.com', :first_name => 'Dave', :last_name => 'Commerce')
-    @referral       = create(:referral, :email => 'referral_user@email.com', :referring_user => @referring_user )
-
-    #@referral_user.stubs(:referree).returns(@referral)
-    @email = Notifier.referral_invite(@referral.id, @referring_user.id)
-  end
-  it "should be set to be delivered to the email passed in" do
-    @email.should deliver_to("referral_user@email.com")
-  end
-
-  it "should have the correct subject" do
-    @email.should have_subject(/Referral from Dave/)
-  end
 end
 
 describe Notifier, "#order_confirmation" do
     include Rails.application.routes.url_helpers
 
     before(:each) do
+      #"jojo@yahoo.com", "Jojo Binks"
+      #[first_name.capitalize, last_name.capitalize ]
       @user         = create(:user, :email => 'myfake@email.com', :first_name => 'Dave', :last_name => 'Commerce')
       @order_item   = create(:order_item)
       @order        = create(:order, :email => 'myfake@email.com', :user => @user)
@@ -84,19 +41,41 @@ describe Notifier, "#order_confirmation" do
     end
 
     it "should be set to be delivered to the email passed in" do
-      @email.should deliver_to("myfake@email.com")
+      @email.should deliver_to('myfake@email.com')
     end
 
     it "should contain the user's message in the mail body" do
-      @email.should have_body_text(/Dave Commerce/)
+      @email.should have_body_text(/Dave/)
     end
-
-    #it "should contain a link to the confirmation link" do
-    #  @email.should have_body_text(/#{confirm_account_url}/)
-    #end
 
     it "should have the correct subject" do
       @email.should have_subject(/Order Confirmation/)
     end
 
 end
+
+
+describe Notifier, "#registration_email" do
+    include Rails.application.routes.url_helpers
+
+    before(:each) do
+      #"jojo@yahoo.com", "Jojo Binks"
+      #[first_name.capitalize, last_name.capitalize ]
+      @user         = create(:user, :email => 'myfake@email.com', :first_name => 'Dave', :last_name => 'Commerce')
+      @email = Notifier.registration_email(@user.id)
+    end
+
+    it "should be set to be delivered to the email passed in" do
+      @email.should deliver_to("Dave Commerce <myfake@email.com>")
+    end
+
+    it "should contain the user's message in the mail body" do
+      @email.should have_body_text(/myfake@email.com/)
+    end
+
+    it "should have the correct subject" do
+      @email.should have_subject(/Thank you for Registering/)
+    end
+
+end
+

@@ -1,4 +1,5 @@
 class Country < ActiveRecord::Base
+
   has_many :states
 
   belongs_to :shipping_zone
@@ -6,15 +7,15 @@ class Country < ActiveRecord::Base
   validates :name,  :presence => true,       :length => { :maximum => 200 }
   validates :abbreviation,  :presence => true,       :length => { :maximum => 10 }
 
-  scope :active_countries,   -> {where(:active => true)}
-  scope :inactive_countries, -> {where(:active => false)}
-
   USA_ID    = 214
   CANADA_ID = 35
+  UK_ID         = 213
+  AUSTRALIA_ID  = 12
 
   after_save :expire_cache
 
-  ACTIVE_COUNTRY_IDS = [CANADA_ID, USA_ID]
+  ACTIVE_COUNTRY_IDS = [ USA_ID ]
+  DROPDOWN_COUNTRY_IDS = [ USA_ID, CANADA_ID, UK_ID, AUSTRALIA_ID ]
 
   # Call this method to display the country_abbreviation - country with and appending name
   #
@@ -49,6 +50,13 @@ class Country < ActiveRecord::Base
     Rails.cache.fetch("Country-form_selector") do
       data = Country.where(:active => true).order('abbreviation ASC').map { |c| [c.abbrev_and_name, c.id] }
       data.blank? ? [[]] : data
+    end
+  end
+
+  def self.landing_page_form_selector
+    Rails.cache.fetch("Landing_Page_Country-form_selector") do
+      data = Country.order('abbreviation ASC').to_a.reject{|c| [DROPDOWN_COUNTRY_IDS].include?(c.id)}.map { |c| [c.abbrev_and_name, c.id] }
+      data = Country.order('abbreviation DESC').find( DROPDOWN_COUNTRY_IDS ).map { |c| [c.abbrev_and_name, c.id] } + data
     end
   end
   private

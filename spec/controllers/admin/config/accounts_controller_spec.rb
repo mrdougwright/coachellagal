@@ -1,12 +1,12 @@
 require  'spec_helper'
 
-describe Admin::Config::AccountsController, type: :controller do
+describe Admin::Config::AccountsController do
   render_views
 
   before(:each) do
     activate_authlogic
 
-    @user = create_super_admin_user
+    @user = create_admin_user
     login_as(@user)
   end
 
@@ -35,7 +35,7 @@ describe Admin::Config::AccountsController, type: :controller do
   it "create action should redirect when model is valid" do
     @account = build(:account)
     Account.any_instance.stubs(:valid?).returns(true)
-    post :create, :account => {:name => 'Tests', :account_type => 'Free2You', :monthly_charge => 10, :active => true}
+    post :create, :account => @account.attributes
     response.should redirect_to(admin_config_accounts_url())
   end
 
@@ -63,6 +63,6 @@ describe Admin::Config::AccountsController, type: :controller do
     @account = create(:account)
     delete :destroy, :id => @account.id
     response.should redirect_to(admin_config_accounts_url)
-    Account.exists?(@account.id).should be false
+    Account.exists?(@account.id).should be_false
   end
 end

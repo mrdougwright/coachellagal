@@ -7,6 +7,46 @@ describe Order, "instance methods" do
     @order = create(:order, :user => @user)
   end
 
+#  def set_stripe_token_to_subscriptions(invoice)
+#    Subscription.where('order_item_id IN (?)', order_items.map(&:id)).update_all(["stripe_customer_token = ?, active = ?",invoice.customer_token, true])
+#    # Invoice.log_accounting_transaction_for_authorized_subscriptions(self.id, charge_amount, payment_profile, taxed_amount, credited_amount)
+#    # payment_authorized!
+#    order_items.each do |order_item|
+#      if order_item.subscription
+#        SubscriptionTransaction.new_authorized_payment(order_item.subscription, order_item.subscription.total_cost, order_item.subscription.total_tax_amount)
+#      end
+#    end
+#  end
+  context ".set_stripe_token_to_subscriptions(invoice)" do
+    it 'should set all the subscription to active and assign the stripe_customer_token' do
+      invoice = create(:invoice, :amount => 13.49, :order => @order, :customer_token => 'blah1230')
+      order_item = FactoryGirl.create(:order_item, :order => @order )
+      @order.stubs(:order_items).returns([order_item])
+      subscription = FactoryGirl.create(:subscription, :order_item => order_item, :user => @user )
+      @order.send(:set_stripe_token_to_subscriptions, invoice)
+      subscription.reload
+      expect(subscription.stripe_customer_token).to eq 'blah1230'
+      expect(subscription.active).to         be_true
+    end
+    it 'should create a SubscriptionTransaction with an authorized payment' do
+      Settings.vat = false
+      invoice       = FactoryGirl.create(:invoice, :amount => 13.49, :tax_amount => 50, :order => @order, :customer_token => 'blah1230')
+      tax_rate      = FactoryGirl.create(:tax_rate, :percentage => 10.0 )
+      order_item    = FactoryGirl.create(:order_item, :order => @order, :tax_rate => tax_rate )
+      @order.stubs(:order_items).returns([order_item])
+      subscription_plan = FactoryGirl.create(:subscription_plan, :amount => 1340)
+      subscription      = FactoryGirl.create(:subscription, :order_item => order_item, :user => @user, :subscription_plan => subscription_plan)
+      @order.send(:set_stripe_token_to_subscriptions, invoice)
+      subscription.reload
+      expect(subscription.transaction_ledgers.blank?).to be_true
+      if false # no longer have installments hence we realize revenue later
+        expect(subscription.transaction_ledgers.detect{|t| t.transaction_account_id == TransactionAccount::ACCOUNTS_RECEIVABLE_ID }.credit).to eq 0
+        expect(subscription.transaction_ledgers.detect{|t| t.transaction_account_id == TransactionAccount::ACCOUNTS_RECEIVABLE_ID }.debit).to eq 14.74
+        expect(subscription.transaction_ledgers.detect{|t| t.transaction_account_id == TransactionAccount::REVENUE_ID }.credit).to eq 14.74
+        expect(subscription.transaction_ledgers.detect{|t| t.transaction_account_id == TransactionAccount::REVENUE_ID }.debit).to eq 0
+      end
+    end
+  end
   context ".name" do
     it 'should return the users name' do
       @order.name.should == 'Freddy Boy'
@@ -39,11 +79,17 @@ describe Order, "instance methods" do
 
   context ".cancel_unshipped_order(invoice)" do
     it 'should return ""' do
-      @invoice = create(:invoice, :amount => 13.49)
+      ReturnAuthorization.any_instance.stubs(:max_refund).returns(10000)
+
       @order = create(:order)
+      @invoice = create(:invoice, :order => @order, :amount => 13.49)
+      @invoice.update_attribute(:state, 'paid')
+      @batch = create(:batch, :batchable => @invoice)
+      @order.state = 'paid'
+      @order.save
       @invoice.stubs(:cancel_authorized_payment).returns(true)
       @order.cancel_unshipped_order(@invoice).should == true
-      expect(@order.active).to be false
+      @order.active.should be_false
     end
   end
 
@@ -81,6 +127,36 @@ describe Order, "instance methods" do
       @order.credited_total.should == 102.12
     end
 
+
+    it 'should calculate credited_total with a coupon' do
+      user = create(:user)
+      coupon = create(:coupon, :amount => 15.00, :expires_at => (Time.zone.now + 1.days), :starts_at => (Time.zone.now - 1.days) )
+      order = create(:order, :user => user, :coupon => coupon)
+
+      order.stubs(:calculate_totals).returns( true )
+      order.stubs(:calculated_at).returns(nil)
+
+      tax_rate = create(:tax_rate, :percentage => 10.0 )
+      order_item1 = create(:order_item, :price => 20.00, :total => 20.00, :tax_rate => tax_rate, :order => order )
+      order_item2 = create(:order_item, :price => 20.00, :total => 20.00, :tax_rate => tax_rate, :order => order )
+
+      #@order.stubs(:order_items).returns([order_item1, order_item2])
+      order.stubs(:coupon).returns(coupon)
+      order.stubs(:shipping_charges).returns(100.00)
+
+
+      # shippping == 100
+      # items     == 40.00
+      # taxes     == (40.00 - 15.00) * .10 == 2.50
+      # credits   == 10.02
+      # total     == 142.50 - 10.02 = 131.48
+      # total - coupon     == 133.98 - 15.00 = 117.48
+      order.user.store_credit.amount = 10.02
+      order.user.store_credit.save
+order.reload
+      order.credited_total.should == 117.48
+    end
+
     it 'should calculate credited_total' do
       @order.stubs(:calculate_totals).returns( true )
       @order.stubs(:calculated_at).returns(nil)
@@ -113,35 +189,6 @@ describe Order, "instance methods" do
       store_credit.amount.should == 0.0
     end
 
-    it 'should calculate credited_total with a coupon' do
-      user = create(:user)
-      coupon = create(:coupon, :amount => 15.00, :expires_at => (Time.zone.now + 1.days), :starts_at => (Time.zone.now - 1.days) )
-      order = create(:order, :user => user, :coupon => coupon)
-
-      order.stubs(:calculate_totals).returns( true )
-      order.stubs(:calculated_at).returns(nil)
-
-      tax_rate = create(:tax_rate, :percentage => 10.0 )
-      order_item1 = create(:order_item, :price => 20.00, :total => 20.00, :tax_rate => tax_rate, :order => order )
-      order_item2 = create(:order_item, :price => 20.00, :total => 20.00, :tax_rate => tax_rate, :order => order )
-
-      #@order.stubs(:order_items).returns([order_item1, order_item2])
-      order.stubs(:coupon).returns(coupon)
-      order.stubs(:shipping_charges).returns(100.00)
-
-
-      # shippping == 100
-      # items     == 40.00
-      # taxes     == (40.00 - 15.00) * .10 == 2.50
-      # credits   == 10.02
-      # total     == 142.50 - 10.02 = 131.48
-      # total - coupon     == 133.98 - 15.00 = 117.48
-      order.user.store_credit.amount = 10.02
-      order.user.store_credit.save
-      order.reload
-      order.credited_total.should == 117.48
-    end
-
     it 'should remove store_credits.amount' do
       @order.stubs(:calculate_totals).returns( true )
       @order.stubs(:calculated_at).returns(nil)
@@ -165,6 +212,7 @@ describe Order, "instance methods" do
   end
 
 
+
   #def create_invoice(credit_card, charge_amount, args)
   #  transaction do
   #    create_invoice_transaction(credit_card, charge_amount, args)
@@ -176,7 +224,7 @@ describe Order, "instance methods" do
     end
     it 'should return an create_invoice on success' do
       cc_params = {
-        :brand              => 'visa',
+        :brand               => 'visa',
         :number             => '1',
         :verification_value => '322',
         :month              => '4',
@@ -332,6 +380,16 @@ describe Order, "instance methods" do
     end
   end
 
+  context ".add_subscribed_item(variant, cheapest_shipping_rate_id, state_id)" do
+    it 'should add a new variant to order items ' do
+      shipping_rate = FactoryGirl.create(:shipping_rate)
+      variant = create(:variant)
+      order_items_size = @order.order_items.size
+      @order.add_subscribed_item(variant, shipping_rate.id, State.first.id)
+      @order.order_items.size.should == order_items_size + 1
+    end
+  end
+
   context ".remove_items(variant, final_quantity)" do
     it 'should remove variant from order items ' do
       variant = create(:variant)
@@ -384,7 +442,7 @@ describe Order, "instance methods" do
     it 'should set number and save' do
       order = create(:order)
       order.number = nil
-      expect(order.send(:save_order_number)).to be true
+      order.send(:save_order_number).should be_true
       order.number.should_not == (Order::NUMBER_SEED + @order.id).to_s(Order::CHARACTERS_SEED)
     end
   end
@@ -398,6 +456,33 @@ describe Order, "instance methods" do
       @order.order_items.push([order_item])
       variant.expects(:add_pending_to_customer).once
       @order.update_inventory
+    end
+  end
+
+  context ".all_in_stock?" do
+    it 'should return true' do
+      Variant.any_instance.stubs(:create_inventory)
+      inventory   = create(:inventory, :count_on_hand => 100, :count_pending_to_customer => 99)
+      variant     = create(:variant,   :inventory_id => inventory.id )
+      order       = create(:order)
+      order_item  = create(:order_item, :order => order, :variant => variant)
+      variant.stubs(:inventory).returns(inventory)
+      order_item.stubs(:variant).returns(variant)
+      order.stubs(:order_items).returns([order_item])
+
+      expect(order.all_in_stock?).to be_true
+    end
+    it 'should return false' do
+      Variant.any_instance.stubs(:create_inventory)
+      inventory   = create(:inventory, :count_on_hand => 100, :count_pending_to_customer => 99)
+      variant     = create(:variant,   :inventory => inventory )
+      order       = create(:order)
+      variant.stubs(:inventory).returns(inventory)
+      order_item  = create(:order_item, :order => order, :variant => variant)
+      order_item.stubs(:variant).returns(variant)
+      order.stubs(:order_items).returns([order_item, order_item])
+
+      expect(order.all_in_stock?).to be_false
     end
   end
 
@@ -415,30 +500,31 @@ describe Order, "instance methods" do
   context ".has_shipment?" do
     #shipments_count > 0
     it 'should return false' do
-      expect(@order.has_shipment?).to be false
+      @order.has_shipment?.should be_false
     end
     it 'should return true' do
       create(:shipment, :order => @order)
-      expect(Order.find(@order.id).has_shipment?).to be true
+      Order.find(@order.id).has_shipment?.should be_true
     end
   end
 
   context ".create_shipments_with_order_item_ids(order_item_ids)" do
     it "should return false if there aren't any ids" do
       @order_item = FactoryGirl.create(:order_item, :order => @order)
-      expect(@order.create_shipments_with_order_item_ids([])).to be false
+      @order.create_shipments_with_order_item_ids([]).should be_false
     end
     it "should return false if the ids cant be shipped" do
       @order_item = FactoryGirl.create(:order_item, :order => @order, :state => 'unpaid')
-      expect(@order.create_shipments_with_order_item_ids([@order_item.id])).to be false
+      @order.create_shipments_with_order_item_ids([@order_item.id]).should be_false
     end
     it "should return true if the ids can be shipped" do
       @order_item = FactoryGirl.build(:order_item, :order => @order)
       @order_item.state = 'paid'
       @order_item.save
-      expect(@order.create_shipments_with_order_item_ids([@order_item.id])).to be true
+      @order.create_shipments_with_order_item_ids([@order_item.id]).should be_true
     end
   end
+
 
   context '.item_prices' do
 
@@ -447,8 +533,8 @@ describe Order, "instance methods" do
       order_item2 = create(:order_item, :order => @order, :price => 9.00)
       @order.stubs(:order_items).returns([order_item1, order_item2])
       @order.send(:item_prices).class.should == Array
-      expect(@order.send(:item_prices).include?(2.01)).to be true
-      expect(@order.send(:item_prices).include?(9.00)).to be true
+      @order.send(:item_prices).include?(2.01).should be_true
+      @order.send(:item_prices).include?(9.00).should be_true
     end
   end
 
@@ -562,15 +648,25 @@ describe Order, "#find_by_number(num)" do
   end
 end
 
+describe Order, "#between(start, end)" do
+  it "should return finished Orders " do
+    order1 = create(:order, :completed_at => nil)
+    order2 = create(:order, :completed_at => Time.zone.now - 10.seconds)
+    order3 = create(:order, :completed_at => Time.zone.now - 2.days)
+    orders = Order.completed_between(Time.zone.now - 1.day, Time.zone.now).to_a
+    orders.size.should == 1
+    orders.include?(order2).should be_true
+  end
+end
 
-describe Order, "#find_finished_order_grid(params = {})", type: :model do
+describe Order, "#find_finished_order_grid(params = {})" do
   it "should return finished Orders " do
     order1 = create(:order, :completed_at => nil)
     order2 = create(:order, :completed_at => Time.now)
     admin_grid = Order.find_finished_order_grid
     admin_grid.size.should == 1
-    expect(admin_grid.include?(order1)).to be false
-    expect(admin_grid.include?(order2)).to be true
+    admin_grid.include?(order1).should be_false
+    admin_grid.include?(order2).should be_true
   end
 end
 
@@ -580,7 +676,57 @@ describe Order, "#fulfillment_grid(params = {})" do
     order2 = create(:order, :shipped => true)
     admin_grid = Order.fulfillment_grid
     admin_grid.size.should == 1
-    expect(admin_grid.include?(order1)).to be true
-    expect(admin_grid.include?(order2)).to be false
+    admin_grid.include?(order1).should be_true
+    admin_grid.include?(order2).should be_false
   end
 end
+
+=begin
+{
+  id: "ch_1NqVtdAqiklyDZ",
+  object: "charge",
+  created: 1362189133,
+  livemode: false,
+  paid: true,
+  amount: 4000,
+  currency: "usd",
+  refunded: false,
+  fee: 146,
+  fee_details: [
+    {
+      amount: 146,
+      currency: "usd",
+      type: "stripe_fee",
+      description: "Stripe processing fees",
+      application: nil,
+      amount_refunded: 0
+    }
+  ],
+  card: {
+    object: "card",
+    last4: "4242",
+    type: "Visa",
+    exp_month: 3,
+    exp_year: 2017,
+    fingerprint: "bEJDqrw2L1n23HcN",
+    country: "US",
+    name: nil,
+    address_line1: nil,
+    address_line2: nil,
+    address_city: nil,
+    address_state: nil,
+    address_zip: nil,
+    address_country: nil,
+    cvc_check: nil,
+    address_line1_check: nil,
+    address_zip_check: nil
+  },
+  failure_message: nil,
+  amount_refunded: 0,
+  customer: "cus_1Ndwm9tlkcqKNd",
+  invoice: nil,
+  description: "Charge for 159g60acfg",
+  dispute: nil
+}
+=end
+

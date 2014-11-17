@@ -1,11 +1,6 @@
 Hadean::Application.configure do
-  # Rails 4
   config.eager_load = false
-
   # Settings specified here will take precedence over those in config/environment.rb
-
-  # Raise exception on mass assignment protection for Active Record models
-  # config.active_record.mass_assignment_sanitizer = :strict
 
   # The test environment is used exclusively to run your application's
   # test suite.  You never need to work with it otherwise.  Remember that
@@ -42,14 +37,7 @@ Hadean::Application.configure do
   config.active_support.deprecation = :stderr
 
   config.after_initialize do
-    ActiveMerchant::Billing::Base.mode = :test
-    ::GATEWAY = ActiveMerchant::Billing::BogusGateway.new
 
-    #::CIM_GATEWAY = ActiveMerchant::Billing::AuthorizeNetCimGateway.new(
-    #  :login    => Settings.authnet.login,
-    #  :password => Settings.authnet.password,
-    #  :test     => true
-    #)
   end
   PAPERCLIP_STORAGE_OPTS = {  :styles => {:mini => '48x48>',
                                           :small => '100x100>',

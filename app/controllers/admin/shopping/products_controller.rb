@@ -10,16 +10,15 @@ class Admin::Shopping::ProductsController < Admin::Shopping::BaseController
   # GET /admin/order/products/1
   # GET /admin/order/products/1.xml
   def show
-    @product = Product.includes({:variants => {:variant_properties => :property} }).find(params[:id])
+    @product = Product.includes({:active_variants => {:variant_properties => :property} }).find(params[:id])
   end
 
   def edit
-    @product = Product.includes({:variants => {:variant_properties => :property} }).find(params[:id])
+    @product = Product.includes({:active_variants => {:variant_properties => :property} }).find(params[:id])
   end
 
   # PUT /admin/order/products/1
   def update
-    #@product = Product.find(params[:id])
     params[:variant].each_pair do |variant_id, qty|
         if (qty.first.blank? || (!qty.first.blank? && qty.first.to_i == 0))
           session_admin_cart.remove_variant(variant_id)
@@ -32,6 +31,11 @@ class Admin::Shopping::ProductsController < Admin::Shopping::BaseController
     end
   end
 
+  def destroy
+    session_admin_cart.remove_variant(params[:variant_id])
+    redirect_to admin_shopping_products_url
+  end
+
   private
 
   def product_types
@@ -41,10 +45,4 @@ class Admin::Shopping::ProductsController < Admin::Shopping::BaseController
     Product.column_names.include?(params[:sort]) ? params[:sort] : "name"
   end
 
-  def sort_direction
-    %w[asc desc].include?(params[:direction]) ? params[:direction] : "asc"
-  end
- # def tax_percentage(tax_rate)
- #   tax_rate ? tax_rate.rate : 0
- # end
 end

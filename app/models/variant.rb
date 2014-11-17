@@ -18,12 +18,11 @@
 #  master       :boolean(1)      default(FALSE), not null
 #  created_at   :datetime
 #  updated_at   :datetime
+#  brand_id     :integer(4)
 #  inventory_id :integer(4)
 #
 
 class Variant < ActiveRecord::Base
-
-
   has_many :variant_suppliers
   has_many :suppliers,         :through => :variant_suppliers
 
@@ -34,19 +33,26 @@ class Variant < ActiveRecord::Base
   has_many   :purchase_orders, :through => :purchase_order_variants
 
   belongs_to :product
+  belongs_to :brand
   belongs_to :inventory
+  belongs_to :subscription_plan
   belongs_to :image_group
+  belongs_to :variant
+  belongs_to :taxability_information
 
-  before_validation :create_inventory#, :on => :create
-  #after_save :expire_cache
+  before_validation :create_inventory, :on => :create
+  after_save :expire_cache
 
+  #validates :name,        :presence => true
+
+  validates :taxability_information_id,  :presence => true
   validates :inventory_id, :presence => true
   validates :price,       :presence => true
   validates :product_id,  :presence => true
-  validates :sku,         :presence => true,       :length => { :maximum => 255 }
+  validates :sku,         :presence => true,      :length => { :maximum => 255 }
+  validates :small_description,                   :length => { :maximum => 499 }
 
   accepts_nested_attributes_for :variant_properties#, :inventory
-  delegate  :brand, :to => :product, :allow_nil => true
 
   delegate  :count_on_hand,
             :count_pending_to_customer,
@@ -56,19 +62,33 @@ class Variant < ActiveRecord::Base
             :count_pending_from_supplier=, :to => :inventory, :allow_nil => false
 
   ADMIN_OUT_OF_STOCK_QTY  = 0
-  OUT_OF_STOCK_QTY        = 2
-  LOW_STOCK_QTY           = 6
+  OUT_OF_STOCK_QTY        = 5
+  LOW_STOCK_QTY           = 25
 
-  def featured_image(image_size = :small)
-    image_urls(image_size).first
+  def short_description
+    small_description? ? small_description : product.short_description
   end
 
-  def image_urls(image_size = :small)
-    Rails.cache.fetch("variant-image_urls-#{self}-#{image_size}", :expires_in => 3.hours) do
-      image_group ? image_group.image_urls(image_size) : product.image_urls(image_size)
-    end
+  def reoccurring_text
+    reoccurring_blurb? ? reoccurring_blurb : product.reoccurring_blurb
   end
 
+  def display_title
+    title? ? title : product_name
+  end
+
+  def display_option
+    option_text? ? option_text : product_name
+  end
+
+  def has_preorder_options?
+    product.multi_option_for_preorder?
+  end
+
+  def similar_variants
+    #Variant.where('variants.deleted_at IS NULL').where(:product_id => product_id).all
+    Variant.joins(:product).where({variants: {deleted_at: nil}}).where({products: {product_type_id: product.product_type_id}})
+  end
   # returns quantity available to purchase
   #
   # @param [none]
@@ -77,8 +97,11 @@ class Variant < ActiveRecord::Base
     admin_purchase ? (quantity_available - ADMIN_OUT_OF_STOCK_QTY) : (quantity_available - OUT_OF_STOCK_QTY)
   end
 
-  def quantity_purchaseable_if_user_wants(this_number_of_items, admin_purchase = false)
-    (quantity_purchaseable(admin_purchase) < this_number_of_items) ? quantity_purchaseable(admin_purchase) : this_number_of_items
+  def featured_image(image_size = :small)
+    image_urls(image_size).first
+  end
+  def image_urls(image_size = :small)
+    image_group ? image_group.image_urls(image_size) : product.image_urls(image_size)
   end
 
   # returns quantity available in stock
@@ -100,6 +123,28 @@ class Variant < ActiveRecord::Base
 
   def inactivate
     deleted_at ? true : false
+  end
+
+  def self.upsells
+    active.where({products: {product_type_id: ProductType.upsell_product_type_ids}})
+  end
+
+  def self.active
+    where({variants: {product_id: Product.cached_active_ids}}).where("variants.deleted_at IS NULL")
+  end
+
+  def self.default_preorder_item_ids
+    Rails.cache.fetch("Variant-default_preorder_item_ids", :expires_in => 10.minutes) do
+      joins(:product).active.where({products: { product_type_id: ProductType.main_preorder_product_type_ids}}).pluck("variants.id")
+    end
+  end
+
+  def self.default_preorder_item
+    includes(:product).active.where({products: { product_type_id: ProductType.main_preorder_product_type_ids}}).order('variants.price DESC').first || active.order('variants.price DESC').first
+  end
+
+  def subscription_plan_name
+    subscription_plan ? subscription_plan.name : '---'
   end
 
   # returns true if the stock level is above or == the out of stock level
@@ -193,7 +238,7 @@ class Variant < ActiveRecord::Base
   # @param [none]
   # @return [String]
   def product_name
-    name? ? name : [product.name, sub_name].reject{ |a| a.strip.length == 0 }.join(' - ')
+    name? ? name : product.name
   end
 
   # returns the primary_property's description or a blank string
@@ -211,7 +256,7 @@ class Variant < ActiveRecord::Base
   # @param [none]
   # @return [String]
   def brand_name
-    product.brand_name
+    brand_id ? brand.name : product.brand_name
   end
 
   # The variant has many properties.  but only one is the primary property
@@ -324,30 +369,20 @@ class Variant < ActiveRecord::Base
   # @param [Optional params]
   # @return [ Array[Variant] ]
   def self.admin_grid(product, params = {})
-    where({:variants => { product_id: product.id} }).
-      includes(:product).
-      product_name_filter(params[:product_name]).
-      sku_filter(params[:sku])
+    grid = where({:variants => { :product_id => product.id} })
+    grid = grid.includes(:product)
+    grid = grid.where({:products => {:name => params[:product_name]}})  if params[:product_name].present?
+    grid = grid.where(['sku LIKE ? ', "#{params[:sku]}%"])  if params[:sku].present?
+    grid
+  end
+
+  def expire_cache
+    Rails.cache.delete("Variant-default_preorder_item_ids")
   end
 
   private
-    def self.sku_filter(sku)
-      if sku.present?
-        where(['sku LIKE ? ', "#{sku}%"])
-      else
-        all
-      end
-    end
-    def self.product_name_filter(product_name)
-      if product_name.present?
-        where({:products => {:name => product_name}})
-      else
-        all
-      end
-    end
 
     def create_inventory
-      self.inventory = Inventory.create({:count_on_hand => 0, :count_pending_to_customer => 0, :count_pending_from_supplier => 0}) unless inventory_id
+      self.inventory = Inventory.create({:count_on_hand => 0, :count_pending_to_customer => 0, :count_pending_from_supplier => 0}) unless inventory
     end
-
 end

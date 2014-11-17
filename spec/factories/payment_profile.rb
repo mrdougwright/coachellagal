@@ -7,18 +7,8 @@ FactoryGirl.define do
     active          true
     cc_type         'visa'
     month           '05'
-    year            { Time.now.year + 1 }
-    last_digits     '3955'
-    credit_card_info  do
-      {
-        :number       => '4916477365453955',
-        :verification_value => '343',
-        :month        => '05',
-        :year         => (Time.now.year + 1),
-        :first_name   => 'David',
-        :last_name    => 'Bowe',
-        :brand        => 'visa'
-      }
-    end
+    year            '2013'
+    #last_digits     '3955'
+    customer_token  'fakeCCtoken'
   end
 end

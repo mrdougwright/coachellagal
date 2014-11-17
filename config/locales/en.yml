@@ -3,7 +3,11 @@
 
 en:
   company:              'Coachella Gal'
-  company_phone:        '1-800-TBD-1212'
+  company_address1:     '1390 Market St'
+  company_address2:
+  company_address3:     'San Francisco, CA 94102'
+  company_description:  'This is the Best site ever!'
+  customer_service_number: ''
   hello:                'Hello'
   out_of_stock_notice:  'Sorry this item is out of stock.'
   item_saved_for_later: 'The item will be saved for later.'
@@ -18,9 +22,20 @@ en:
   the_order:            "the Order."
   the_order_purchased:  "The order has been purchased."
   is_not_valid:         'is not valid.'
+  login_title:          'SIGN-UP & REGISTRATION'
   login_successful:     "Login successful!"
   login_failure:        "Invalid email or password."
   logout_successful:    "Logout successful!"
+
+# Social Links
+  company_domain:  'coachellagal.com'
+  twitter_url:  'https://twitter.com/coachellagal'
+  facebook_url: 'https://www.facebook.com/coachellagal'
+  desk_dot_com_url: 'http://support.coachellagal.com/'
+  contact_us_url: 'http://support.coachellagal.com/customer/portal/emails/new'
+  google_plus_url:  ''
+  youtube_url:      'http://www.youtube.com/coachellagal'
+  instagram_url: 'http://instagram.com/coachellagal'
 
   nothing_in_cart:       "You don't have anything in your cart."
   only_items_saved_for_later: "You only have items Saved for Later."
@@ -33,8 +48,6 @@ en:
   do_not_have_anything_in_your_cart:      "You don't have anything in your cart"
 
   no_addresses_saved:                     'Currently no addresses saved.'
-  meta_description:       'The best e-commerce store in the World!'
-  meta_keywords:          'Shopping, Jewelry'
 
   label_create_shipment_button: 'Create Shipment'
 
@@ -47,8 +60,13 @@ en:
       short: "%b %d"
       long: "%B %d, %Y"
       us_date: "%m/%d/%Y"
+      file_date: "%Y-%d-%m"
+      moulton_date: "%Y%m%d"
   time:
     formats:
       us_date: "%m/%d/%Y"
       us_time: "%m/%d/%Y @ %I:%M %p"
       long_date: "%B %d, %Y"
+      file_date: "%Y-%d-%m"
+      file_time: "%Y-%d-%m-%I-%M-%S"
+      moulton_date: "%Y%m%d"

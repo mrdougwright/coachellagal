@@ -11,12 +11,24 @@ describe OrderItem, "instance methods" do
   context ".shipped?" do
     it 'should return true if there is a shipment_id' do
       @order_item.shipment_id = 1
-      expect(@order_item.shipped?).to be true
+      @order_item.shipped?.should be_true
     end
 
     it 'should return false if there is a shipment_id' do
       @order_item.shipment_id = nil
-      expect(@order_item.shipped?).to be false
+      @order_item.shipped?.should be_false
+    end
+  end
+
+  context '.cancel!' do
+    it "should mark subscription canceled" do
+      subscription = create(:subscription, :order_item => @order_item, :active => true)
+      subscription.canceled.should be_false
+      subscription.active.should be_true
+      @order_item.cancel!
+      subscription.reload
+      subscription.active.should be_true
+      subscription.canceled.should be_true
     end
   end
 
@@ -78,19 +90,19 @@ describe OrderItem, "instance methods" do
     it 'should be ready to calculate if we know the shipping rate and tax rate' do
       @order_item.shipping_rate_id = 1
       @order_item.tax_rate_id = 1
-      expect(@order_item.ready_to_calculate?).to be_truthy
+      @order_item.ready_to_calculate?.should be_true
     end
 
     it 'should not be ready to calculate if we dont know the shipping rate ' do
       @order_item.shipping_rate_id = nil
       @order_item.tax_rate_id = 1
-      expect(@order_item.ready_to_calculate?).to be_falsey
+      @order_item.ready_to_calculate?.should be_false
     end
 
     it 'should not be ready to calculate if we know the tax rate' do
       @order_item.shipping_rate_id = 1
       @order_item.tax_rate_id = nil
-      expect(@order_item.ready_to_calculate?).to be_falsey
+      @order_item.ready_to_calculate?.should be_false
     end
   end
 end
@@ -170,5 +182,5 @@ describe OrderItem, "With VAT" do
   end
 end
 describe OrderItem, "#order_items_in_cart(order_id)" do
-  skip "test for order_items_in_cart(order_id)"
+  pending "test for order_items_in_cart(order_id)"
 end

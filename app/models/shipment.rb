@@ -61,13 +61,13 @@ class Shipment < ActiveRecord::Base
     order_items.size > 0
   end
 
-  # when the order has been shipped
-  #   the inventory must be updated
+  # when the order has been shipped the inventory must be updated
+  #
+  # @param [none]
+  # @return [ Boolean ]
   def ship_inventory
-    order_items.each do |item|
-      item.variant.subtract_pending_to_customer(1)
-      item.variant.subtract_count_on_hand(1)
-    end
+    order_items.each{ |item| item.variant.subtract_pending_to_customer(1) }
+    order_items.each{ |item| item.variant.subtract_count_on_hand(1) }
   end
 
   # mark the order as shipped when the item ships
@@ -139,6 +139,16 @@ class Shipment < ActiveRecord::Base
     find(id_from_number(num))##  now we can search by id which should be much faster
   end
 
+  def self.admin_grid(args)
+    if args[:order_number].present?
+      where("orders.number = ?", args[:order_number])
+    elsif args[:email].present?
+      where("orders.email = ?", args[:email])
+    else
+      scoped
+    end
+  end
+
   private
 
   # Called before validation.  sets the shipment number, if the id is nil the shipment number is bogus
@@ -147,7 +157,7 @@ class Shipment < ActiveRecord::Base
   # @return [none]
   def set_number
     return set_shipment_number if self.id
-    self.number = (Time.now.to_i).to_s## fake number for validator
+    self.number = (Time.now.to_i).to_s## fake number for friendly_id validator
   end
 
   # sets the order shipment based off constants and the shipment id
