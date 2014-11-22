@@ -17,12 +17,12 @@ describe Shipment, 'instance methods' do
   context '.has_items?' do
     # order_items.size > 0
     it 'should not have items' do
-      @shipment.has_items?.should be_false
+      @shipment.has_items?.should be_falsey
     end
     it 'should have items' do
       order_item = create(:order_item)
       @shipment.order_items.push(order_item)
-      @shipment.has_items?.should be_true
+      @shipment.has_items?.should be_truthy
     end
   end
 
@@ -46,7 +46,7 @@ describe Shipment, 'instance methods' do
     it 'should mark the order shipped' do
       @shipment.order.shipped = false
       @shipment.mark_order_as_shipped
-      @shipment.order.shipped.should be_true
+      @shipment.order.shipped.should be_truthy
     end
   end
 
@@ -82,8 +82,8 @@ describe Shipment, 'instance method from build' do
     # order.user.shipping_addresses
     it 'should return all the shipping addresses for the user' do
       shipment = Shipment.find(@shipment.id)
-      shipment.shipping_addresses.collect{|a| a.id }.include?(@address1.id).should be_true
-      shipment.shipping_addresses.collect{|a| a.id }.include?(@address2.id).should be_true
+      shipment.shipping_addresses.collect{|a| a.id }.include?(@address1.id).should be_truthy
+      shipment.shipping_addresses.collect{|a| a.id }.include?(@address2.id).should be_truthy
     end
   end
 end

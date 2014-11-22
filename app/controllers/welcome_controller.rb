@@ -8,19 +8,6 @@ class WelcomeController < ApplicationController
     @best_selling_products = Product.limit(5)
     @product_types = ProductType.all
     @user = User.new
-    if Settings.in_signup_period
-      if current_user && current_user.admin?
-        render  :layout => 'preorder'
-      else
-        render :template => 'welcome/signup', :layout => 'welcome'
-      end
-    elsif Settings.allow_orders
-      render :template => 'welcome/orders', :layout => 'application'
-    elsif Settings.allow_preorders
-      render  :layout => 'preorder'
-    else
-      raise WrongSettingsError
-    end
   end
 
   def load

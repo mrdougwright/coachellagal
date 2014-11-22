@@ -8,7 +8,7 @@ describe UsersNewsletter do
     end
 
     it 'Users should auto subscribe from all newsletters' do
-      expect(@user.newsletter_ids.include?(@newsletter.id)).to be_true
+      expect(@user.newsletter_ids.include?(@newsletter.id)).to be_truthy
     end
     it 'should unsubscribe from all newsletters' do
       UsersNewsletter.unsubscribe(@user.email, UsersNewsletter.unsubscribe_key(@user.email))

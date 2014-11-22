@@ -150,7 +150,7 @@ describe Product, ".instance methods" do
 
     context ".price_range?" do
       it 'should return the price range' do
-        @product.price_range?.should be_true
+        @product.price_range?.should be_truthy
       end
     end
   end
@@ -166,7 +166,7 @@ describe Product, ".instance methods" do
           inventory   = create(:inventory, count_on_hand: 100, count_pending_to_customer: 100)
           @variant    = create(:variant, product: @product, inventory: inventory)
           FactoryGirl.create(:shipping_rate, shipping_category: @product.shipping_category)
-          expect(@product.available?).to be_false
+          expect(@product.available?).to be_falsey
         end
       end
 
@@ -174,7 +174,7 @@ describe Product, ".instance methods" do
         it 'should be false' do
           inventory   = create(:inventory, count_on_hand: 100, count_pending_to_customer: 90)
           @variant    = create(:variant, product: @product, inventory: inventory)
-          expect(@product.available?).to be_false
+          expect(@product.available?).to be_falsey
         end
       end
 
@@ -183,21 +183,21 @@ describe Product, ".instance methods" do
           inventory   = create(:inventory, count_on_hand: 100, count_pending_to_customer: 90)
           @variant    = create(:variant, product: @product, inventory: inventory)
           FactoryGirl.create(:shipping_rate, shipping_category: @product.shipping_category)
-          expect(@product.available?).to be_true
+          expect(@product.available?).to be_truthy
         end
       end
     end
 
     context '.has_shipping_method?' do
       it 'should be false without a shipping rate' do
-        expect(@product.has_shipping_method?).to be_false
+        expect(@product.has_shipping_method?).to be_falsey
       end
 
       it 'should be true with a shipping rate' do
         inventory   = create(:inventory, count_on_hand: 100, count_pending_to_customer: 90)
         @variant    = create(:variant, product: @product, inventory: inventory)
         FactoryGirl.create(:shipping_rate, shipping_category: @product.shipping_category)
-        expect(@product.has_shipping_method?).to be_true
+        expect(@product.has_shipping_method?).to be_truthy
       end
     end
   end
@@ -214,8 +214,8 @@ describe Product, "class methods" do
       product2.activate!
       args = 'tester'
       products = Product.standard_search(args)
-      products.include?(product1).should be_false
-      products.include?(product2).should be_true
+      products.include?(product1).should be_falsey
+      products.include?(product2).should be_truthy
     end
   end
 
@@ -239,8 +239,8 @@ describe Product, "class methods" do
       product2.activate!
       admin_grid = Product.admin_grid({}, true)
       admin_grid.size.should == 2
-      admin_grid.include?(product1).should be_true
-      admin_grid.include?(product2).should be_true
+      admin_grid.include?(product1).should be_truthy
+      admin_grid.include?(product2).should be_truthy
     end
     it "should return deleted Products " do
       product1 = create(:product)
@@ -251,8 +251,8 @@ describe Product, "class methods" do
       product2.save
       admin_grid = Product.admin_grid({}, false)
       admin_grid.size.should == 1
-      admin_grid.include?(product1).should be_true
-      admin_grid.include?(product2).should be_false
+      admin_grid.include?(product1).should be_truthy
+      admin_grid.include?(product2).should be_falsey
     end
 
     it "should return deleted Products " do
@@ -260,8 +260,8 @@ describe Product, "class methods" do
       product2 = create(:product)
       admin_grid = Product.admin_grid({}, nil)
       admin_grid.size.should == 2
-      admin_grid.include?(product1).should be_true
-      admin_grid.include?(product2).should be_true
+      admin_grid.include?(product1).should be_truthy
+      admin_grid.include?(product2).should be_truthy
     end
   end
 end

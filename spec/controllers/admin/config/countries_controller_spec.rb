@@ -22,7 +22,7 @@ describe Admin::Config::CountriesController do
     Country.any_instance.stubs(:valid?).returns(true)
     put :update, :id => country.id, :country => country.attributes
     country.reload
-    country.active.should be_true
+    country.active.should be_truthy
     response.should redirect_to(admin_config_countries_url)
   end
 
@@ -32,6 +32,6 @@ describe Admin::Config::CountriesController do
     delete :destroy, :id => country.id
     response.should redirect_to(admin_config_countries_url)
     country.reload
-    country.active.should be_false
+    country.active.should be_falsey
   end
 end

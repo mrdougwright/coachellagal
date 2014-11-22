@@ -62,6 +62,6 @@ describe Admin::Config::TaxRatesController do
     @tax_rate = create(:tax_rate)
     delete :destroy, :id => @tax_rate.id
     response.should redirect_to(admin_config_tax_rates_url)
-    TaxRate.find(@tax_rate.id).active.should be_false
+    TaxRate.find(@tax_rate.id).active.should be_falsey
   end
 end

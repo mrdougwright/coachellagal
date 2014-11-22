@@ -16,7 +16,7 @@ describe ReturnAuthorization, 'instance methods' do
       return_item               = create(:return_item, :order_item => order_item, :return_authorization => @return_authorization)
       @return_authorization.mark_items_returned
       order_item.reload.state.should == 'returned'
-      return_item.reload.returned.should be_true
+      return_item.reload.returned.should be_truthy
     end
   end
   context '.process_ledger_transactions' do
@@ -51,7 +51,7 @@ describe ReturnAuthorization, 'instance methods' do
     it 'should set number and save' do
       return_authorization = create(:return_authorization)
       return_authorization.number = nil
-      return_authorization.save_order_number.should be_true
+      return_authorization.save_order_number.should be_truthy
       return_authorization.number.should_not == (ReturnAuthorization::NUMBER_SEED + @return_authorization.id).to_s(ReturnAuthorization::CHARACTERS_SEED)
     end
   end
@@ -97,8 +97,8 @@ describe ReturnAuthorization do
       return_authorization2 = create(:return_authorization)
       admin_grid = ReturnAuthorization.admin_grid
       admin_grid.size.should == 2
-      admin_grid.include?(return_authorization1).should be_true
-      admin_grid.include?(return_authorization2).should be_true
+      admin_grid.include?(return_authorization1).should be_truthy
+      admin_grid.include?(return_authorization2).should be_truthy
     end
   end
 end

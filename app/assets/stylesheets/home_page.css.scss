@@ -56,4 +56,10 @@ table.products {
   tr {
     background-color: white;
   }
+  tr:nth-child(even) {
+    background-color: white;
+  }
+  td {
+    text-align: center;
+  }
 }

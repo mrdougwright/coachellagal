@@ -36,7 +36,7 @@ describe User, ".form_birth_date(val)" do
     #should_receive(:authenticate).with("password").and_return(true)
     user.birth_date.should_not be_blank
     user.form_birth_date.should == '05/18/1975'
-    #ActiveSupport::TimeZone.us_zones.map(&:to_s).include?(user.time_zone).should be_true
+    #ActiveSupport::TimeZone.us_zones.map(&:to_s).include?(user.time_zone).should be_truthy
   end
 
   it "should return the correct b-day" do
@@ -44,7 +44,7 @@ describe User, ".form_birth_date(val)" do
     #should_receive(:authenticate).with("password").and_return(true)
     user.birth_date.should be_blank
     user.form_birth_date.should == nil
-    #ActiveSupport::TimeZone.us_zones.map(&:to_s).include?(user.time_zone).should be_true
+    #ActiveSupport::TimeZone.us_zones.map(&:to_s).include?(user.time_zone).should be_truthy
   end
 end
 
@@ -56,23 +56,23 @@ describe User, '#get_new_user(args)' do
     args = {:email => user.email, :password => 'GoodPass1!', :password_confirmation => 'GoodPass1!', :first_name => 'dav',:last_name => 'H'}
 
     new_user = User.get_new_user(args)
-    new_user.new_record?.should be_false
+    new_user.new_record?.should be_falsey
   end
   it 'should be invalid user if the user has a password' do
     user = create(:user)
     args = {:email => user.email, :password => 'GoodPass1!', :password_confirmation => 'GoodPass1!', :first_name => 'dav',:last_name => 'H'}
 
     new_user = User.get_new_user(args)
-    new_user.new_record?.should be_true
-    new_user.valid?.should be_false # duplicate email
-    new_user.errors.has_key?(:email).should be_true # duplicate email
+    new_user.new_record?.should be_truthy
+    new_user.valid?.should be_falsey # duplicate email
+    new_user.errors.has_key?(:email).should be_truthy # duplicate email
   end
   it 'should not grab current signedin user if they have never had a password' do
     user = create(:user)
     args = {:email => 'different@email.com'}
 
     new_user = User.get_new_user(args)
-    new_user.new_record?.should be_true
+    new_user.new_record?.should be_truthy
   end
 end
 
@@ -90,15 +90,15 @@ end
 describe User, '.registered_user?' do
   it "should return false for an unregistered user" do
     user = build(:user)
-    user.registered_user?.should be_false
+    user.registered_user?.should be_falsey
   end
   it "should return true for a registered user" do
     user = registered_user_factory
-    user.registered_user?.should be_true
+    user.registered_user?.should be_truthy
   end
   it "should return true for a user registered_with_credit" do
     user = registered_with_credit_user_factory
-    user.registered_user?.should be_true
+    user.registered_user?.should be_truthy
   end
 end
 
@@ -111,17 +111,17 @@ describe User, "instance methods" do
   context ".admin?" do
     it 'should be an admin' do
       user = create_admin_user
-      user.admin?.should be_true
+      user.admin?.should be_truthy
     end
 
     it 'should be an admin' do
       user = create_super_admin_user
-      user.admin?.should be_true
+      user.admin?.should be_truthy
     end
 
     it 'should not be an admin' do
       user = create(:user)
-      user.admin?.should be_false
+      user.admin?.should be_falsey
     end
   end
 end
@@ -135,25 +135,25 @@ describe User, "instance methods" do
   context ".active?" do
     it 'should not be active' do
       @user.state = 'canceled'
-      @user.active?.should be_false
+      @user.active?.should be_falsey
       @user.state = 'inactive'
-      @user.active?.should be_false
+      @user.active?.should be_falsey
     end
 
     it 'should be active' do
       @user.state = 'unregistered'
-      @user.active?.should be_true
+      @user.active?.should be_truthy
       @user.state = 'registered'
-      @user.active?.should be_true
+      @user.active?.should be_truthy
     end
   end
 
   context ".role?(role_name)" do
     it 'should be active' do
       @user.state = 'unregistered'
-      @user.active?.should be_true
+      @user.active?.should be_truthy
       @user.state = 'registered'
-      @user.active?.should be_true
+      @user.active?.should be_truthy
     end
   end
 
@@ -182,7 +182,7 @@ describe User, "instance methods" do
   context ".might_be_interested_in_these_products" do
     it 'should find products' do
       product = create(:product)
-      @user.might_be_interested_in_these_products.include?(product).should be_true
+      @user.might_be_interested_in_these_products.include?(product).should be_truthy
     end
 
     #pending "add your specific find products method here"
@@ -250,21 +250,21 @@ describe User, "instance methods" do
     # registered? || registered_with_credit?
     it 'should be true for a registered user' do
       @user.register!
-      @user.registered_user?.should be_true
+      @user.registered_user?.should be_truthy
     end
     it 'should be true for a registered_with_credit user' do
       @user.state = 'registered_with_credit'
-      @user.registered_user?.should be_true
+      @user.registered_user?.should be_truthy
     end
 
     it 'should not be a registered user' do
       @user.state = 'active'
-      @user.registered_user?.should be_false
+      @user.registered_user?.should be_falsey
     end
 
     it 'should not be a registered user' do
       @user.state = 'canceled'
-      @user.registered_user?.should be_false
+      @user.registered_user?.should be_falsey
     end
   end
 
@@ -359,12 +359,12 @@ describe User, 'private methods' do
   context ".password_required?" do
     it 'should require a password if the crypted password is blank' do
       @user.crypted_password = nil
-      @user.send(:password_required?).should be_true
+      @user.send(:password_required?).should be_truthy
     end
 
     it 'should not require a password if the crypted password is present' do
       @user.crypted_password = 'blah'
-      @user.send(:password_required?).should be_false
+      @user.send(:password_required?).should be_falsey
     end
   end
 
@@ -398,9 +398,9 @@ describe User, 'private methods' do
     it 'should return a hash of user info' do
       @user.save
       profile = @user.send(:user_profile)
-      profile.keys.include?(:merchant_customer_id).should be_true
-      profile.keys.include?(:email).should be_true
-      profile.keys.include?(:description).should be_true
+      profile.keys.include?(:merchant_customer_id).should be_truthy
+      profile.keys.include?(:email).should be_truthy
+      profile.keys.include?(:description).should be_truthy
     end
   end
 end
@@ -412,7 +412,7 @@ describe User, "#admin_grid(params = {})" do
     user2 = create(:user)
     admin_grid = User.admin_grid
     admin_grid.size.should == 2
-    admin_grid.include?(user1).should be_true
-    admin_grid.include?(user2).should be_true
+    admin_grid.include?(user1).should be_truthy
+    admin_grid.include?(user2).should be_truthy
   end
 end

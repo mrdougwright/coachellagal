@@ -54,21 +54,21 @@ describe Coupon do
         order = create(:order)
         @coupon_value.stubs(:starts_at).returns(Time.now - 1.days)
         @coupon_value.stubs(:expires_at).returns(Time.now + 1.days)
-        @coupon_value.eligible?(order).should be_true
+        @coupon_value.eligible?(order).should be_truthy
       end
 
       it "should return false" do
         order = create(:order)
         @coupon_value.stubs(:starts_at).returns(Time.now - 3.days)
         @coupon_value.stubs(:expires_at).returns(Time.now - 1.days)
-        @coupon_value.eligible?(order).should be_false
+        @coupon_value.eligible?(order).should be_falsey
       end
 
       it "should return false" do
         order = create(:order)
         @coupon_value.stubs(:starts_at).returns(Time.now + 1.days)
         @coupon_value.stubs(:expires_at).returns(Time.now + 18.days)
-        @coupon_value.eligible?(order).should be_false
+        @coupon_value.eligible?(order).should be_falsey
       end
     end
 
@@ -78,12 +78,12 @@ describe Coupon do
       it "should return true" do
         @coupon_value.stubs(:minimum_value).returns(10.00)
         @coupon_value.stubs(:eligible?).returns(true)
-        @coupon_value.qualified?([2.01, 9.00], @order).should be_true
+        @coupon_value.qualified?([2.01, 9.00], @order).should be_truthy
       end
 
       it "should return false" do
         @coupon_value.stubs(:minimum_value).returns(20.00)
-        @coupon_value.qualified?([2.01, 9.00], @order).should be_false
+        @coupon_value.qualified?([2.01, 9.00], @order).should be_falsey
       end
     end
 

@@ -32,7 +32,7 @@ describe Cart, " instance methods" do
       variant = FactoryGirl.create(:variant)
       @cart.change_main_sale(variant, nil)
       @cart.reload
-      expect(@cart.shopping_cart_items.map(&:variant_id).include?(variant.id)).to be_true
+      expect(@cart.shopping_cart_items.map(&:variant_id).include?(variant.id)).to be_truthy
     end
   end
 
@@ -43,7 +43,7 @@ describe Cart, " instance methods" do
       cart_item = FactoryGirl.create(:cart_item, :variant => variant2)
       Variant.stubs(:default_preorder_item_ids).returns([variant2.id])
       @cart.stubs(:shopping_cart_items).returns([cart_item])
-      @cart.has_main_sale_already?.should be_true
+      @cart.has_main_sale_already?.should be_truthy
     end
     it 'should be false' do
       variant1 = FactoryGirl.create(:variant)
@@ -51,7 +51,7 @@ describe Cart, " instance methods" do
       cart_item = FactoryGirl.create(:cart_item, :variant => variant1)
       Variant.stubs(:default_preorder_item_ids).returns([variant2.id])
       @cart.stubs(:shopping_cart_items).returns([cart_item])
-      @cart.has_main_sale_already?.should be_false
+      @cart.has_main_sale_already?.should be_falsey
     end
   end
 
@@ -172,7 +172,7 @@ describe Cart, ".remove_variant" do
     variant_ids =  @cart.cart_items.collect {|ci| ci.variant.id }
     @cart.remove_variant(variant_ids.first)
     @cart.cart_items.each do |ci|
-      ci.active.should be_false if ci.variant.id == variant_ids.first
+      ci.active.should be_falsey if ci.variant.id == variant_ids.first
     end
   end
 end
@@ -193,8 +193,8 @@ describe  ".merge_with_previous_cart! " do
       cart_item2    = create(:cart_item, cart: previous_cart, user: @user, variant: @variant2)
       @cart.merge_with_previous_cart!
       @cart.reload
-      expect(@cart.cart_items.map(&:variant_id).include?(@variant1.id)).to be_true
-      expect(@cart.cart_items.map(&:variant_id).include?(@variant2.id)).to be_true
+      expect(@cart.cart_items.map(&:variant_id).include?(@variant1.id)).to be_truthy
+      expect(@cart.cart_items.map(&:variant_id).include?(@variant2.id)).to be_truthy
     end
   end
 
@@ -204,7 +204,7 @@ describe  ".merge_with_previous_cart! " do
       cart_item2    = create(:cart_item, cart: previous_cart, user: @user, variant: @variant1, quantity: 1)
       @cart.merge_with_previous_cart!
       @cart.reload
-      expect(@cart.cart_items.map(&:variant_id).include?(@variant1.id)).to be_true
+      expect(@cart.cart_items.map(&:variant_id).include?(@variant1.id)).to be_truthy
       expect(@cart.cart_items.size).to eq 1
       expect(@cart.cart_items.first.quantity).to eq 2
     end

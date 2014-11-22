@@ -21,6 +21,6 @@ describe UpsellsController do
   it "destroy action should destroy model and redirect to index action" do
     delete :destroy, :id => @cart_item.id
     expect(response).to redirect_to(preorders_url(:anchor => 'order-summary'))
-    CartItem.find(@cart_item.id).active.should be_false
+    CartItem.find(@cart_item.id).active.should be_falsey
   end
 end

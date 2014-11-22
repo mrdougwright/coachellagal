@@ -11,24 +11,24 @@ describe OrderItem, "instance methods" do
   context ".shipped?" do
     it 'should return true if there is a shipment_id' do
       @order_item.shipment_id = 1
-      @order_item.shipped?.should be_true
+      @order_item.shipped?.should be_truthy
     end
 
     it 'should return false if there is a shipment_id' do
       @order_item.shipment_id = nil
-      @order_item.shipped?.should be_false
+      @order_item.shipped?.should be_falsey
     end
   end
 
   context '.cancel!' do
     it "should mark subscription canceled" do
       subscription = create(:subscription, :order_item => @order_item, :active => true)
-      subscription.canceled.should be_false
-      subscription.active.should be_true
+      subscription.canceled.should be_falsey
+      subscription.active.should be_truthy
       @order_item.cancel!
       subscription.reload
-      subscription.active.should be_true
-      subscription.canceled.should be_true
+      subscription.active.should be_truthy
+      subscription.canceled.should be_truthy
     end
   end
 
@@ -90,19 +90,19 @@ describe OrderItem, "instance methods" do
     it 'should be ready to calculate if we know the shipping rate and tax rate' do
       @order_item.shipping_rate_id = 1
       @order_item.tax_rate_id = 1
-      @order_item.ready_to_calculate?.should be_true
+      @order_item.ready_to_calculate?.should be_truthy
     end
 
     it 'should not be ready to calculate if we dont know the shipping rate ' do
       @order_item.shipping_rate_id = nil
       @order_item.tax_rate_id = 1
-      @order_item.ready_to_calculate?.should be_false
+      @order_item.ready_to_calculate?.should be_falsey
     end
 
     it 'should not be ready to calculate if we know the tax rate' do
       @order_item.shipping_rate_id = 1
       @order_item.tax_rate_id = nil
-      @order_item.ready_to_calculate?.should be_false
+      @order_item.ready_to_calculate?.should be_falsey
     end
   end
 end

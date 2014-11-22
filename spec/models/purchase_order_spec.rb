@@ -81,12 +81,12 @@ describe PurchaseOrder, 'instance methods' do
   context ".receive_po" do
     it 'should return true if state is received' do
       @purchase_order.state = PurchaseOrder::RECEIVED
-      @purchase_order.receive_po.should be_true
+      @purchase_order.receive_po.should be_truthy
     end
 
     it 'should return false if state is not received' do
       @purchase_order.state = PurchaseOrder::PENDING
-      @purchase_order.receive_po.should be_false
+      @purchase_order.receive_po.should be_falsey
     end
   end
 
@@ -105,7 +105,7 @@ end
 describe PurchaseOrder, ".pay_for_order" do
   it 'should pay for the order ' do
     purchase_order = create(:purchase_order, :state => 'pending', :total_cost => 20.32)
-    purchase_order.pay_for_order.should be_true
+    purchase_order.pay_for_order.should be_truthy
     purchase_order.transaction_ledgers.size.should == 2
 
     #cash_debits = cash_credits = expense_debits = expense_credits = []
@@ -156,8 +156,8 @@ describe PurchaseOrder, "#admin_grid(params = {})" do
     purchase_order2 = create(:purchase_order)
     admin_grid = PurchaseOrder.admin_grid
     admin_grid.size.should == 2
-    admin_grid.include?(purchase_order1).should be_true
-    admin_grid.include?(purchase_order2).should be_true
+    admin_grid.include?(purchase_order1).should be_truthy
+    admin_grid.include?(purchase_order2).should be_truthy
   end
 end
 
@@ -169,7 +169,7 @@ describe PurchaseOrder, "#receiving_admin_grid(params = {})" do
     purchase_order2 = create(:purchase_order)
     admin_grid = PurchaseOrder.receiving_admin_grid
     admin_grid.size.should == 1
-    admin_grid.include?(purchase_order1).should be_false
-    admin_grid.include?(purchase_order2).should be_true
+    admin_grid.include?(purchase_order1).should be_falsey
+    admin_grid.include?(purchase_order2).should be_truthy
   end
 end

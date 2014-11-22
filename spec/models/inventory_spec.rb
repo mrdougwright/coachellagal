@@ -24,7 +24,7 @@ describe Inventory do
       :count_on_hand       =>      10,
       :count_pending_to_customer => 11 - Variant::OUT_OF_STOCK_QTY)
       inventory.valid?.should == true
-      inventory.save.should be_true
+      inventory.save.should be_truthy
     end
 
     it 'should not save inventory below out_of_stock limit' do

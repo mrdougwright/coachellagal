@@ -30,7 +30,7 @@ describe Admin::Config::StatesController do
     state = State.first
     State.any_instance.stubs(:valid?).returns(true)
     put :update, :id => state.id, :state => state.attributes.reject {|k,v| ['id'].include?(k)}
-    State.find(state.id).active.should be_true
+    State.find(state.id).active.should be_truthy
     expect(response).to redirect_to(admin_config_states_url())
   end
 
@@ -38,6 +38,6 @@ describe Admin::Config::StatesController do
     state = State.first
     delete :destroy, :id => state.id
     expect(response).to redirect_to(admin_config_states_url)
-    State.find(state.id).active.should be_false
+    State.find(state.id).active.should be_falsey
   end
 end

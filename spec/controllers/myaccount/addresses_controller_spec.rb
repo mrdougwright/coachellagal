@@ -68,8 +68,8 @@ describe Myaccount::AddressesController do
     @address = create(:address, :addressable => @user)
     delete :destroy, :id => @address.id
     response.should redirect_to(myaccount_addresses_url)
-    Address.exists?(@address.id).should be_true
+    Address.exists?(@address.id).should be_truthy
     a = Address.find(@address.id)
-    a.active.should be_false
+    a.active.should be_falsey
   end
 end

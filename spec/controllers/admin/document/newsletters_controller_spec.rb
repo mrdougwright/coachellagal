@@ -64,6 +64,6 @@ describe Admin::Document::NewslettersController do
     newsletter = FactoryGirl.create(:newsletter)
     delete :destroy, :id => newsletter.id
     expect(response).to redirect_to(admin_document_newsletters_url)
-    Newsletter.exists?(newsletter.id).should be_false
+    Newsletter.exists?(newsletter.id).should be_falsey
   end
 end

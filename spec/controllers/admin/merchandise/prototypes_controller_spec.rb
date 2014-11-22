@@ -64,6 +64,6 @@ describe Admin::Merchandise::PrototypesController do
     @prototype = create(:prototype)
     delete :destroy, :id => @prototype.id
     response.should redirect_to(admin_merchandise_prototypes_url)
-    Prototype.find(@prototype.id).active.should be_false
+    Prototype.find(@prototype.id).active.should be_falsey
   end
 end

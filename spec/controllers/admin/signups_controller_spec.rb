@@ -64,6 +64,6 @@ describe Admin::SignupsController do
     signup = FactoryGirl.create(:signup)
     delete :destroy, :id => signup.id
     expect(response).to redirect_to(admin_signups_url)
-    Signup.exists?(signup.id).should be_false
+    Signup.exists?(signup.id).should be_falsey
   end
 end

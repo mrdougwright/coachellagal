@@ -63,6 +63,6 @@ describe Admin::Config::AccountsController do
     @account = create(:account)
     delete :destroy, :id => @account.id
     response.should redirect_to(admin_config_accounts_url)
-    Account.exists?(@account.id).should be_false
+    Account.exists?(@account.id).should be_falsey
   end
 end

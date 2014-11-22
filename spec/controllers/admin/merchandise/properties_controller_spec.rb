@@ -59,6 +59,6 @@ describe Admin::Merchandise::PropertiesController do
     @property = create(:property)
     delete :destroy, :id => @property.id
     response.should redirect_to(admin_merchandise_properties_url)
-    Property.find(@property.id).active.should be_false
+    Property.find(@property.id).active.should be_falsey
   end
 end

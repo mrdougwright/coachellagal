@@ -50,16 +50,16 @@ describe Invoice, "instance methods" do
     it 'should create a CreditCardCapture transaction' do
       @invoice.stubs(:amount).returns(20.50)
       #@invoice.stubs(:batches).returns([])
-      @invoice.capture_complete_order.should be_true
+      @invoice.capture_complete_order.should be_truthy
       @invoice.order.user.transaction_ledgers.size.should == 2
     end
 
     context ".authorize_complete_order" do
       it 'should create a CreditCardReceivePayment transaction' do
         @invoice.stubs(:amount).returns(20.50)
-        @invoice.authorize_complete_order.should be_true
+        @invoice.authorize_complete_order.should be_truthy
         @invoice.order.user.transaction_ledgers.size.should == 2
-        @invoice.capture_complete_order.should be_true
+        @invoice.capture_complete_order.should be_truthy
         @invoice.order.user.transaction_ledgers.size.should == 4
       end
 
@@ -68,7 +68,7 @@ describe Invoice, "instance methods" do
           @invoice.stubs(:amount).returns(20.50)
           @invoice.authorize_complete_order
 
-          @invoice.cancel_authorized_payment.should be_true
+          @invoice.cancel_authorized_payment.should be_truthy
           @invoice.order.user.transaction_ledgers.size.should == 4
           revenue_credits = []
           ar_credits      = []
@@ -101,7 +101,7 @@ describe Invoice, "#process_rma(return_amount, order)" do
     order = create(:order)
     invoice = Invoice.process_rma(20.55, order)
     #@invoice.stubs(:batches).returns([])
-    #invoice.capture_complete_order.should be_true
+    #invoice.capture_complete_order.should be_truthy
     invoice.order.user.transaction_ledgers.size.should == 2
     invoice.state.should == 'refunded'
   end
@@ -139,7 +139,7 @@ describe Invoice, "#generate(order_id, charge_amount, payment_method, tax_amount
     invoice = Invoice.generate(1, charge_amount, payment_method)
     invoice.id.should == nil
     invoice.invoice_type.should == Invoice::PURCHASE
-    invoice.valid?.should be_true
+    invoice.valid?.should be_truthy
   end
 end
 describe Invoice, 'optimize' do
@@ -164,10 +164,10 @@ describe Invoice, 'optimize' do
   describe Invoice, ".succeeded?" do
     it 'will return a true if authorized or paid' do
       invoice = create(:invoice, :state => 'authorized')
-      invoice.succeeded?.should be_true
+      invoice.succeeded?.should be_truthy
 
       invoice = create(:invoice, :state => 'paid')
-      invoice.succeeded?.should be_true
+      invoice.succeeded?.should be_truthy
     end
   end
 end

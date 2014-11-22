@@ -47,6 +47,6 @@ describe Admin::Fulfillment::SubscriptionsController do
     subscription = FactoryGirl.create(:subscription)
     delete :destroy, :id => subscription.id
     expect(response).to redirect_to(admin_fulfillment_subscription_url(subscription))
-    Subscription.find(subscription.id).active.should be_false
+    Subscription.find(subscription.id).active.should be_falsey
   end
 end

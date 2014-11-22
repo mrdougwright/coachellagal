@@ -26,7 +26,7 @@ describe Order, "instance methods" do
       @order.send(:set_stripe_token_to_subscriptions, invoice)
       subscription.reload
       expect(subscription.stripe_customer_token).to eq 'blah1230'
-      expect(subscription.active).to         be_true
+      expect(subscription.active).to         be_truthy
     end
     it 'should create a SubscriptionTransaction with an authorized payment' do
       Settings.vat = false
@@ -38,7 +38,7 @@ describe Order, "instance methods" do
       subscription      = FactoryGirl.create(:subscription, :order_item => order_item, :user => @user, :subscription_plan => subscription_plan)
       @order.send(:set_stripe_token_to_subscriptions, invoice)
       subscription.reload
-      expect(subscription.transaction_ledgers.blank?).to be_true
+      expect(subscription.transaction_ledgers.blank?).to be_truthy
       if false # no longer have installments hence we realize revenue later
         expect(subscription.transaction_ledgers.detect{|t| t.transaction_account_id == TransactionAccount::ACCOUNTS_RECEIVABLE_ID }.credit).to eq 0
         expect(subscription.transaction_ledgers.detect{|t| t.transaction_account_id == TransactionAccount::ACCOUNTS_RECEIVABLE_ID }.debit).to eq 14.74
@@ -89,7 +89,7 @@ describe Order, "instance methods" do
       @order.save
       @invoice.stubs(:cancel_authorized_payment).returns(true)
       @order.cancel_unshipped_order(@invoice).should == true
-      @order.active.should be_false
+      @order.active.should be_falsey
     end
   end
 
@@ -442,7 +442,7 @@ order.reload
     it 'should set number and save' do
       order = create(:order)
       order.number = nil
-      order.send(:save_order_number).should be_true
+      order.send(:save_order_number).should be_truthy
       order.number.should_not == (Order::NUMBER_SEED + @order.id).to_s(Order::CHARACTERS_SEED)
     end
   end
@@ -470,7 +470,7 @@ order.reload
       order_item.stubs(:variant).returns(variant)
       order.stubs(:order_items).returns([order_item])
 
-      expect(order.all_in_stock?).to be_true
+      expect(order.all_in_stock?).to be_truthy
     end
     it 'should return false' do
       Variant.any_instance.stubs(:create_inventory)
@@ -482,7 +482,7 @@ order.reload
       order_item.stubs(:variant).returns(variant)
       order.stubs(:order_items).returns([order_item, order_item])
 
-      expect(order.all_in_stock?).to be_false
+      expect(order.all_in_stock?).to be_falsey
     end
   end
 
@@ -500,28 +500,28 @@ order.reload
   context ".has_shipment?" do
     #shipments_count > 0
     it 'should return false' do
-      @order.has_shipment?.should be_false
+      @order.has_shipment?.should be_falsey
     end
     it 'should return true' do
       create(:shipment, :order => @order)
-      Order.find(@order.id).has_shipment?.should be_true
+      Order.find(@order.id).has_shipment?.should be_truthy
     end
   end
 
   context ".create_shipments_with_order_item_ids(order_item_ids)" do
     it "should return false if there aren't any ids" do
       @order_item = FactoryGirl.create(:order_item, :order => @order)
-      @order.create_shipments_with_order_item_ids([]).should be_false
+      @order.create_shipments_with_order_item_ids([]).should be_falsey
     end
     it "should return false if the ids cant be shipped" do
       @order_item = FactoryGirl.create(:order_item, :order => @order, :state => 'unpaid')
-      @order.create_shipments_with_order_item_ids([@order_item.id]).should be_false
+      @order.create_shipments_with_order_item_ids([@order_item.id]).should be_falsey
     end
     it "should return true if the ids can be shipped" do
       @order_item = FactoryGirl.build(:order_item, :order => @order)
       @order_item.state = 'paid'
       @order_item.save
-      @order.create_shipments_with_order_item_ids([@order_item.id]).should be_true
+      @order.create_shipments_with_order_item_ids([@order_item.id]).should be_truthy
     end
   end
 
@@ -533,8 +533,8 @@ order.reload
       order_item2 = create(:order_item, :order => @order, :price => 9.00)
       @order.stubs(:order_items).returns([order_item1, order_item2])
       @order.send(:item_prices).class.should == Array
-      @order.send(:item_prices).include?(2.01).should be_true
-      @order.send(:item_prices).include?(9.00).should be_true
+      @order.send(:item_prices).include?(2.01).should be_truthy
+      @order.send(:item_prices).include?(9.00).should be_truthy
     end
   end
 
@@ -655,7 +655,7 @@ describe Order, "#between(start, end)" do
     order3 = create(:order, :completed_at => Time.zone.now - 2.days)
     orders = Order.completed_between(Time.zone.now - 1.day, Time.zone.now).to_a
     orders.size.should == 1
-    orders.include?(order2).should be_true
+    orders.include?(order2).should be_truthy
   end
 end
 
@@ -665,8 +665,8 @@ describe Order, "#find_finished_order_grid(params = {})" do
     order2 = create(:order, :completed_at => Time.now)
     admin_grid = Order.find_finished_order_grid
     admin_grid.size.should == 1
-    admin_grid.include?(order1).should be_false
-    admin_grid.include?(order2).should be_true
+    admin_grid.include?(order1).should be_falsey
+    admin_grid.include?(order2).should be_truthy
   end
 end
 
@@ -676,8 +676,8 @@ describe Order, "#fulfillment_grid(params = {})" do
     order2 = create(:order, :shipped => true)
     admin_grid = Order.fulfillment_grid
     admin_grid.size.should == 1
-    admin_grid.include?(order1).should be_true
-    admin_grid.include?(order2).should be_false
+    admin_grid.include?(order1).should be_truthy
+    admin_grid.include?(order2).should be_falsey
   end
 end
 

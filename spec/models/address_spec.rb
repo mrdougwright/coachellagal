@@ -42,7 +42,7 @@ describe Address, "methods" do
     it 'should inactivate the address' do
       @address.save
       @address.inactive!
-      @address.active.should be_false
+      @address.active.should be_falsey
     end
   end
 
@@ -174,10 +174,10 @@ describe Address, "#save" do
     @address2.save
     @address.default = true
     @address.save
-    @address.default.should       be_true
-    @address2.reload.default.should_not  be_true
-    @address2.reload.default.should_not  be_true
-    @address3.reload.default.should  be_true # should only update the addresses that belong to that user
+    @address.default.should       be_truthy
+    @address2.reload.default.should_not  be_truthy
+    @address2.reload.default.should_not  be_truthy
+    @address3.reload.default.should  be_truthy # should only update the addresses that belong to that user
   end
 end
 

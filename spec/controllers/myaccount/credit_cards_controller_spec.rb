@@ -38,10 +38,10 @@ describe Myaccount::CreditCardsController do
     @credit_card = create(:payment_profile, :user => @user)
     delete :destroy, :id => @credit_card.id
     response.should redirect_to(myaccount_credit_cards_url)
-    PaymentProfile.exists?(@credit_card.id).should be_true
+    PaymentProfile.exists?(@credit_card.id).should be_truthy
 
     c = PaymentProfile.find(@credit_card.id)
-    c.active.should be_false
+    c.active.should be_falsey
   end
 end
 
