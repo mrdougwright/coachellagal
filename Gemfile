@@ -18,7 +18,7 @@ gem 'cancan'
 gem 'compass'
 gem 'compass-rails'
 gem 'chronic'
-#gem 'dalli'#, '~> 1.0.2'
+gem 'dalli'
 
 gem 'dynamic_form'#, '~> 1.1.4'
 gem "friendly_id"
