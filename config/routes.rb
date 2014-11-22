@@ -1,10 +1,5 @@
 Hadean::Application.routes.draw do
 
-  # resource :google12299642d5975b38, :only => :show
-  # resource :iuwhcbphqoimcsid,       :only => :show
-  # match 'loaderio-79aeb8198cf6b8d1faffd0edad063326'  => 'welcome#load'
-  # match 'loaderio-93a086e0760b88038535f27e6b626d2b'  => 'welcome#load'
-
   get 'admin'   => 'admin/users#index'
   get 'login'   => 'user_sessions#new'
   get 'signin'  => 'user_sessions#new'
