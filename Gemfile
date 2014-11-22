@@ -17,6 +17,7 @@ gem 'bluecloth'
 gem 'cancan'
 gem 'compass'
 gem 'compass-rails'
+gem 'compass-blueprint'
 gem 'chronic'
 gem 'dalli'
 
