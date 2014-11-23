@@ -1,5 +1,5 @@
 source 'http://rubygems.org'
-ruby '2.0.0'
+# ruby '2.0.0'
 
 ## Bundle rails:
 gem 'rails', '4.0.4'
@@ -60,7 +60,6 @@ group :production, :staging do
   gem 'pg'
   gem "airbrake"
   gem 'newrelic_rpm'
-  # gem 'rails3_serve_static_assets', github: 'heroku/rails3_serve_static_assets'
 end
 
 group :development do
