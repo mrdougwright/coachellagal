@@ -18,7 +18,7 @@ class ApplicationController < ActionController::Base
                 :customer_confirmation_page_view,
                 :recent_admin_users
 
-  before_filter :redirect_without_www
+  # before_filter :redirect_without_www
   before_filter :secure_session
   before_filter :redirect_to_welcome
 

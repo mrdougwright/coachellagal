@@ -19,7 +19,7 @@ authnet:
   password:   <%= ENV['AUTHNET_PASSWORD'] %>
 vat: false
 require_state_in_address: true
-force_ssl: true
+force_ssl: false # was true
 redirect: true
 redirect_www: true
 
